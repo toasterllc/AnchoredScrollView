@@ -6,7 +6,7 @@
 #import "AnchoredDocumentView.h"
 #import "AnchoredMetalDocumentLayer.h"
 
-static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatBGRA8Unorm;
+static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
 
 @interface MyDocLayer : AnchoredMetalDocumentLayer
 @end
