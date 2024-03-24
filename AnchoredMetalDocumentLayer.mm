@@ -1,32 +1,22 @@
 #import "AnchoredMetalDocumentLayer.h"
 #import <algorithm>
 #import <cmath>
-#import "Tools/Shared/Mat.h"
 
-static Mat<float,4,4> _Scale(float x, float y, float z) {
+static simd::float4x4 _Scale(float x, float y, float z) {
     return {
-        x,   0.f, 0.f, 0.f,
-        0.f, y,   0.f, 0.f,
-        0.f, 0.f, z,   0.f,
-        0.f, 0.f, 0.f, 1.f,
+        simd::float4{ x,   0.f, 0.f, 0.f },
+        simd::float4{ 0.f, y,   0.f, 0.f },
+        simd::float4{ 0.f, 0.f, z,   0.f },
+        simd::float4{ 0.f, 0.f, 0.f, 1.f },
     };
 }
 
-static Mat<float,4,4> _Translate(float x, float y, float z) {
+static simd::float4x4 _Translate(float x, float y, float z) {
     return {
-        1.f, 0.f, 0.f, x,
-        0.f, 1.f, 0.f, y,
-        0.f, 0.f, 1.f, z,
-        0.f, 0.f, 0.f, 1.f,
-    };
-}
-
-static simd::float4x4 _SIMDForMat(const Mat<float,4,4>& m) {
-    return {
-        simd::float4{m.at(0,0), m.at(1,0), m.at(2,0), m.at(3,0)},
-        simd::float4{m.at(0,1), m.at(1,1), m.at(2,1), m.at(3,1)},
-        simd::float4{m.at(0,2), m.at(1,2), m.at(2,2), m.at(3,2)},
-        simd::float4{m.at(0,3), m.at(1,3), m.at(2,3), m.at(3,3)},
+        simd::float4{ 1.f, 0.f, 0.f, 0.f },
+        simd::float4{ 0.f, 1.f, 0.f, 0.f },
+        simd::float4{ 0.f, 0.f, 1.f, 0.f },
+        simd::float4{   x,   y,   z, 1.f },
     };
 }
 
@@ -66,14 +56,14 @@ static simd::float4x4 _SIMDForMat(const Mat<float,4,4>& m) {
     // We expect our superlayer's size to be the full content size
     const CGSize contentSize = [[self superlayer] bounds].size;
     const int flip = [self isGeometryFlipped] ? -1 : 1;
-    const Mat<float,4,4> transform =
+    const simd::float4x4 transform =
         _Translate(-1, -1*flip, 1)                          *
         _Scale(2, 2*flip, 1)                                *
         _Scale(1/frame.size.width, 1/frame.size.height, 1)  *
         _Translate(-_translation.x, -_translation.y, 0)     *
         _Scale(contentSize.width, contentSize.height, 1)    ;
     
-    return _SIMDForMat(transform);
+    return transform;
 }
 
 // MARK: - CALayer Overrides
