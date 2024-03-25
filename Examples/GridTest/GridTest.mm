@@ -2,6 +2,7 @@
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
 #import <simd/simd.h>
+#import <algorithm>
 #import "AnchoredScrollView.h"
 #import "AnchoredDocumentView.h"
 #import "AnchoredMetalDocumentLayer.h"
@@ -106,6 +107,11 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
 }
 
 - (void)setCellScale:(float)x {
+    constexpr float CellScaleMin = 0.025;
+    constexpr float CellScaleMax = 5.0;
+    x *= CellScaleMax;
+    x = std::max(CellScaleMin, x);
+//    x = std::clamp(x, 0.025f, 1.0f);
     
     _grid.setCellSize({
         (int32_t)std::round(_CellSizeDefault.width*x),
