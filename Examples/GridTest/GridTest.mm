@@ -14,10 +14,12 @@
 #import "GridLayerTypes.h"
 #import "Lib/Toastbox/Util.h"
 #import "Lib/Toastbox/Mac/Renderer.h"
+#import "Lib/Toastbox/Mmap.h"
 namespace fs = std::filesystem;
 
-static constexpr uint32_t _ImageWidth = 160;
-static constexpr uint32_t _ImageHeight = 90;
+static constexpr size_t _ImageWidth = 160;
+static constexpr size_t _ImageHeight = 90;
+static constexpr size_t _ImageCount = 1000;
 
 static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
 
@@ -31,6 +33,8 @@ static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
 
 static constexpr CGSize _CellSizeDefault = { _ImageWidth, _ImageHeight };
 static constexpr CGSize _CellSpacingDefault = { 10, 10 };
+
+static Toastbox::Mmap _ImagesMmap;
 
 @interface GridLayer : AnchoredMetalDocumentLayer
 @end
@@ -100,7 +104,7 @@ static constexpr CGSize _CellSpacingDefault = { 10, 10 };
         .bottom = 10,
     });
     
-    _grid.setElementCount(1000000);
+    _grid.setElementCount(_ImageCount);
 //    _grid.setElementCount(10000);
     
     return self;
@@ -824,27 +828,26 @@ int main(int argc, const char* argv[]) {
 //        compressor.encode(tmpStorage.data(), rec.thumb.data);
 //    }
     
+    const size_t MmapLen = sizeof(_ImageCompressedStorage) * _ImageCount;
+    const size_t MmapCap = Toastbox::Mmap::PageCeil(MmapLen);
     
+    _ImagesMmap = Toastbox::Mmap("/Users/dave/Desktop/images.mmap", MmapCap, O_CREAT|O_RDWR);
+    _ImagesMmap.len(MmapLen);
     
-    
-    
-    std::atomic<int> workIdx = 1000;
+    std::atomic<uint32_t> workIdx = 0;
     {
         std::vector<std::thread> workers;
         const uint32_t threadCount = std::max(1,(int)std::thread::hardware_concurrency());
         for (uint32_t i=0; i<threadCount; i++) {
             workers.emplace_back([&](){
-                id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
-//                MTKTextureLoader* txtLoader = [[MTKTextureLoader alloc] initWithDevice:dev];
-//                Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
-//                MockImageSource::ThumbCompressor compressor;
-//                std::unique_ptr<MockImageSource::TmpStorage> tmpStorage = std::make_unique<MockImageSource::TmpStorage>();
-                
                 for (;;) @autoreleasepool {
-                    const auto idx = workIdx.fetch_sub(1);
-                    if (idx < 0) break;
+                    const auto dstIdx = workIdx.fetch_add(1);
+                    if (dstIdx >= _ImageCount) break;
                     
-                    
+                    const uint32_t srcIdx = arc4random_uniform((uint32_t)images.size());
+                    const uint8_t* src = &images.at(srcIdx)->at(0);
+                    uint8_t* dst = _ImagesMmap.data(dstIdx * sizeof(_ImageCompressedStorage), sizeof(_ImageCompressedStorage));
+                    memcpy(dst, src, sizeof(_ImageCompressedStorage));
                 }
             });
         }
