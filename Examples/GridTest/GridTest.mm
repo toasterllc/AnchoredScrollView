@@ -299,6 +299,7 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
 - (IBAction)_sliderAction:(id)sender {
     GridLayer*const layer = (GridLayer*)[[_scrollView document] layer];
     [layer setCellScale:[_slider floatValue]];
+    [_scrollView setNeedsLayout:true];
 }
 
 @end
