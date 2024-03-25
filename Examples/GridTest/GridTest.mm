@@ -82,7 +82,8 @@ static CGColorSpaceRef _LinearSRGBColorSpace() {
         .bottom = 10,
     });
     
-    _grid.setElementCount(100);
+    _grid.setElementCount(1000000);
+//    _grid.setElementCount(10000);
     
     return self;
 }
@@ -113,10 +114,6 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
     id<MTLTexture> drawableTxt = [drawable texture];
     assert(drawableTxt);
     
-//    [self frame].size.width*contentsScale
-//    [[self enclosingScrollView] bounds].size.width
-//    [_imageGridLayer setContainerWidth:[drawableTxt width]];
-    
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     
     {
@@ -146,23 +143,6 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
         [[renderPassDescriptor colorAttachments][0] setLoadAction:MTLLoadActionLoad];
         [[renderPassDescriptor colorAttachments][0] setStoreAction:MTLStoreActionStore];
         
-//        const uintptr_t imageRefsBegin = (uintptr_t)&*_imageLibrary->begin();
-//        const uintptr_t imageRefsEnd = (uintptr_t)&*_imageLibrary->end();
-//        id<MTLBuffer> imageRefs = [_device newBufferWithBytes:(void*)imageRefsBegin
-//            length:imageRefsEnd-imageRefsBegin options:MTLResourceCPUCacheModeDefaultCache|MTLResourceStorageModeShared];
-//        
-//        const auto begin = ImageLibrary::BeginSorted(*_imageLibrary, _sortNewestFirst);
-//        const auto [visibleBegin, visibleEnd] = _VisibleRange(visibleIndexRange, *_imageLibrary, _sortNewestFirst);
-//        
-//        // Update stale _ChunkTexture slices from the ImageRecord's thumbnail data, if needed. (We know whether a
-//        // _ChunkTexture slice is stale by using ImageRecord's loadCount.)
-//        const auto chunkBegin = it;
-//        _ChunkTexture& ct = [self _getChunkTexture:it];
-//        for (; it!=visibleEnd && it->chunk==chunkBegin->chunk; it++) {
-//            _ChunkTextureUpdateSlice(ct, *it);
-//        }
-//        const auto chunkEnd = it;
-//        
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
         [renderEncoder setRenderPipelineState:_pipelineState];
         [renderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
@@ -170,6 +150,7 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
         
         const RenderContext ctx = {
             .grid = _grid,
+            .idx = (uint32_t)visibleIndexRange.start,
             .viewSize = {(float)viewSize.width, (float)viewSize.height},
             .transform = [self anchoredTransform],
         };
@@ -182,42 +163,10 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
 //        [renderEncoder setFragmentTexture:ct.txt atIndex:0];
         
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0
-            vertexCount:6 instanceCount:_grid.elementCount()];
+            vertexCount:6 instanceCount:visibleIndexRange.count];
         
         [renderEncoder endEncoding];
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-//    {
-//        MTLRenderPassDescriptor* desc = [MTLRenderPassDescriptor new];
-//        [[desc colorAttachments][0] setTexture:drawableTxt];
-//        [[desc colorAttachments][0] setClearColor:{0,0,0,1}];
-//        [[desc colorAttachments][0] setLoadAction:MTLLoadActionLoad];
-//        [[desc colorAttachments][0] setStoreAction:MTLStoreActionStore];
-//        id<MTLRenderCommandEncoder> enc = [commandBuffer renderCommandEncoderWithDescriptor:desc];
-//        
-//        [enc setRenderPipelineState:_pipelineState];
-//        [enc setFrontFacingWinding:MTLWindingCounterClockwise];
-//        [enc setCullMode:MTLCullModeNone];
-//        
-//        const simd_float4x4 transform = [self anchoredTransform];
-//        [enc setVertexBytes:&transform length:sizeof(transform) atIndex:0];
-//        [enc setFragmentTexture:_imageTexture atIndex:0];
-//        
-//        [enc drawPrimitives:MTLPrimitiveTypeTriangle
-//            vertexStart:0
-//            vertexCount:6
-//            instanceCount:1];
-//        
-//        [enc endEncoding];
-//    }
     
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
