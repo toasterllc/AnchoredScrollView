@@ -834,6 +834,7 @@ int main(int argc, const char* argv[]) {
     _ImagesMmap = Toastbox::Mmap("/Users/dave/Desktop/images.mmap", MmapCap, O_CREAT|O_RDWR);
     _ImagesMmap.len(MmapLen);
     
+    // Scatter `images` into our `_ImagesMmap` mmap
     std::atomic<uint32_t> workIdx = 0;
     {
         std::vector<std::thread> workers;
