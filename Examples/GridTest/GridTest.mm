@@ -10,6 +10,9 @@
 
 static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
 
+static constexpr CGSize _CellSizeDefault = { 160, 90 };
+static constexpr CGSize _CellSpacingDefault = { 10, 10 };
+
 @interface GridLayer : AnchoredMetalDocumentLayer
 @end
 
@@ -26,6 +29,7 @@ static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
     
     CGFloat _containerWidth;
     Grid _grid;
+    float _cellScale;
 }
 
 - (instancetype)init {
@@ -67,8 +71,8 @@ static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
     _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:nil];
     assert(_pipelineState);
     
-    _grid.setCellSize({160, 90});
-    _grid.setCellSpacing({6, 6});
+//    _grid.setCellSize({160, 90});
+//    _grid.setCellSpacing({6, 6});
     
     _grid.setBorderSize({
         .left   = 10,
@@ -99,6 +103,24 @@ static Grid::Rect _GridRectFromCGRect(CGRect rect, CGFloat scale) {
 
 static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat scale) {
     return grid.indexRangeForIndexRect(grid.indexRectForRect(_GridRectFromCGRect(frame, scale)));
+}
+
+- (void)setCellScale:(float)x {
+    
+    _grid.setCellSize({
+        (int32_t)std::round(_CellSizeDefault.width*x),
+        (int32_t)std::round(_CellSizeDefault.height*x)
+    });
+    
+    _grid.setCellSpacing({
+        (int32_t)std::round(_CellSpacingDefault.width*x),
+        (int32_t)std::round(_CellSpacingDefault.height*x)
+    });
+    
+    [self setNeedsDisplay];
+    
+//    _grid.setCellSize()
+//    printf("setCellSize:\n");
 }
 
 - (void)display {
@@ -258,15 +280,25 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
 @interface MainView : NSView
 @end
 
-@implementation MainView
+@implementation MainView {
+    IBOutlet NSSlider* _slider;
+    ScrollView* _scrollView;
+}
 
 - (void)awakeFromNib {
-    ScrollView* sv = [ScrollView new];
-    [self addSubview:sv];
-    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[sv]|"
-        options:0 metrics:nil views:NSDictionaryOfVariableBindings(sv)]];
-    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[sv]|"
-        options:0 metrics:nil views:NSDictionaryOfVariableBindings(sv)]];
+    _scrollView = [ScrollView new];
+    [self addSubview:_scrollView];
+    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[_scrollView]|"
+        options:0 metrics:nil views:NSDictionaryOfVariableBindings(_scrollView)]];
+    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[_scrollView]|"
+        options:0 metrics:nil views:NSDictionaryOfVariableBindings(_scrollView)]];
+    
+    [self _sliderAction:nil];
+}
+
+- (IBAction)_sliderAction:(id)sender {
+    GridLayer*const layer = (GridLayer*)[[_scrollView document] layer];
+    [layer setCellScale:[_slider floatValue]];
 }
 
 @end
