@@ -16,6 +16,9 @@
 		551FFA862BAFE4CE0056263C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 551FFA852BAFE4CE0056263C /* Cocoa.framework */; };
 		551FFA882BAFE4DD0056263C /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 551FFA872BAFE4DD0056263C /* QuartzCore.framework */; };
 		551FFA8A2BAFE4E90056263C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 551FFA892BAFE4E90056263C /* Metal.framework */; };
+		5568446C2BB1FCA0008F59AE /* Lib in Resources */ = {isa = PBXBuildFile; fileRef = 5568446B2BB1FCA0008F59AE /* Lib */; };
+		5568446E2BB20B8C008F59AE /* MetalPerformanceShaders.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5568446D2BB20B8C008F59AE /* MetalPerformanceShaders.framework */; };
+		556844702BB21026008F59AE /* libate.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 5568446F2BB21026008F59AE /* libate.tbd */; };
 		55F8D0B627C5E55C00757165 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55F8D0B527C5E55C00757165 /* MetalKit.framework */; };
 		55F8D0CF27C6DB5100757165 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55F8D0CE27C6DB5100757165 /* Accelerate.framework */; };
 /* End PBXBuildFile section */
@@ -36,6 +39,9 @@
 		551FFA892BAFE4E90056263C /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		556844682BB1CBC9008F59AE /* Grid.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Grid.h; sourceTree = "<group>"; };
 		556844692BB1CFD9008F59AE /* GridLayerTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GridLayerTypes.h; sourceTree = "<group>"; };
+		5568446B2BB1FCA0008F59AE /* Lib */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Lib; path = ../../Lib; sourceTree = "<group>"; };
+		5568446D2BB20B8C008F59AE /* MetalPerformanceShaders.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShaders.framework; path = System/Library/Frameworks/MetalPerformanceShaders.framework; sourceTree = SDKROOT; };
+		5568446F2BB21026008F59AE /* libate.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libate.tbd; path = usr/lib/libate.tbd; sourceTree = SDKROOT; };
 		55F8D09E27C594F800757165 /* GridTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GridTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		55F8D0B527C5E55C00757165 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		55F8D0CE27C6DB5100757165 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
@@ -51,6 +57,8 @@
 				55F8D0CF27C6DB5100757165 /* Accelerate.framework in Frameworks */,
 				551FFA882BAFE4DD0056263C /* QuartzCore.framework in Frameworks */,
 				551FFA8A2BAFE4E90056263C /* Metal.framework in Frameworks */,
+				5568446E2BB20B8C008F59AE /* MetalPerformanceShaders.framework in Frameworks */,
+				556844702BB21026008F59AE /* libate.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -60,6 +68,7 @@
 		55F8D09527C594F800757165 = {
 			isa = PBXGroup;
 			children = (
+				5568446B2BB1FCA0008F59AE /* Lib */,
 				556844682BB1CBC9008F59AE /* Grid.h */,
 				556844692BB1CFD9008F59AE /* GridLayerTypes.h */,
 				551FFA742BAFE3B20056263C /* GridLayer.metal */,
@@ -88,6 +97,8 @@
 		55F8D0B427C5E55C00757165 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5568446F2BB21026008F59AE /* libate.tbd */,
+				5568446D2BB20B8C008F59AE /* MetalPerformanceShaders.framework */,
 				551FFA892BAFE4E90056263C /* Metal.framework */,
 				551FFA872BAFE4DD0056263C /* QuartzCore.framework */,
 				551FFA852BAFE4CE0056263C /* Cocoa.framework */,
@@ -155,6 +166,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5568446C2BB1FCA0008F59AE /* Lib in Resources */,
 				551FFA7B2BAFE3C30056263C /* MainMenu.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
