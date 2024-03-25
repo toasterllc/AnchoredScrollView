@@ -6,15 +6,8 @@
 #import "AnchoredDocumentView.h"
 #import "AnchoredMetalDocumentLayer.h"
 
-static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
-
 @interface MyDocLayer : AnchoredMetalDocumentLayer
 @end
-
-static CGColorSpaceRef _LinearSRGBColorSpace() {
-    static CGColorSpaceRef cs = CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB);
-    return cs;
-}
 
 @implementation MyDocLayer {
 @private
@@ -31,20 +24,18 @@ static CGColorSpaceRef _LinearSRGBColorSpace() {
 - (instancetype)init {
     if (!(self = [super init])) return nil;
     
-    [self setPresentsWithTransaction:true];
-    
     _device = [self preferredDevice];
     assert(_device);
     
     [self setDevice:[self preferredDevice]];
-    [self setPixelFormat:_PixelFormat];
-    [self setColorspace:_LinearSRGBColorSpace()];
+    [self setColorspace:(__bridge CGColorSpaceRef)CFBridgingRelease(CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB))];
+    [self setOpaque:false]; // Allow the window background to show behind us
     
     _library = [_device newDefaultLibrary];
     _commandQueue = [_device newCommandQueue];
     
     MTKTextureLoader* loader = [[MTKTextureLoader alloc] initWithDevice:_device];
-    _imageTexture = [loader newTextureWithContentsOfURL:[[NSBundle mainBundle] URLForImageResource:@"TestImage"] options:nil error:nil];
+    _imageTexture = [loader newTextureWithContentsOfURL:[[NSBundle mainBundle] URLForImageResource:@"Test-Image"] options:nil error:nil];
     assert(_imageTexture);
     
     _vertexShader = [_library newFunctionWithName:@"VertexShader"];
@@ -57,16 +48,7 @@ static CGColorSpaceRef _LinearSRGBColorSpace() {
     [pipelineDescriptor setVertexFunction:_vertexShader];
     [pipelineDescriptor setFragmentFunction:_fragmentShader];
     
-    [[pipelineDescriptor colorAttachments][0] setPixelFormat:_PixelFormat];
-    [[pipelineDescriptor colorAttachments][0] setBlendingEnabled:true];
-    
-    [[pipelineDescriptor colorAttachments][0] setAlphaBlendOperation:MTLBlendOperationAdd];
-    [[pipelineDescriptor colorAttachments][0] setSourceAlphaBlendFactor:MTLBlendFactorSourceAlpha];
-    [[pipelineDescriptor colorAttachments][0] setDestinationAlphaBlendFactor:MTLBlendFactorOneMinusSourceAlpha];
-
-    [[pipelineDescriptor colorAttachments][0] setRgbBlendOperation:MTLBlendOperationAdd];
-    [[pipelineDescriptor colorAttachments][0] setSourceRGBBlendFactor:MTLBlendFactorSourceAlpha];
-    [[pipelineDescriptor colorAttachments][0] setDestinationRGBBlendFactor:MTLBlendFactorOneMinusSourceAlpha];
+    [[pipelineDescriptor colorAttachments][0] setPixelFormat:[self pixelFormat]];
     
     _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:nil];
     assert(_pipelineState);
@@ -85,24 +67,10 @@ static CGColorSpaceRef _LinearSRGBColorSpace() {
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     
     {
-        MTLRenderPassDescriptor* renderPassDescriptor = [MTLRenderPassDescriptor new];
-        [[renderPassDescriptor colorAttachments][0] setTexture:drawableTxt];
-        [[renderPassDescriptor colorAttachments][0] setLoadAction:MTLLoadActionClear];
-        [[renderPassDescriptor colorAttachments][0] setClearColor:{}];
-        [[renderPassDescriptor colorAttachments][0] setStoreAction:MTLStoreActionStore];
-        
-        id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        [renderEncoder setRenderPipelineState:_pipelineState];
-        [renderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-        [renderEncoder setCullMode:MTLCullModeNone];
-        [renderEncoder endEncoding];
-    }
-    
-    {
         MTLRenderPassDescriptor* desc = [MTLRenderPassDescriptor new];
         [[desc colorAttachments][0] setTexture:drawableTxt];
-        [[desc colorAttachments][0] setClearColor:{0,0,0,1}];
-        [[desc colorAttachments][0] setLoadAction:MTLLoadActionLoad];
+        [[desc colorAttachments][0] setClearColor:{}];
+        [[desc colorAttachments][0] setLoadAction:MTLLoadActionClear];
         [[desc colorAttachments][0] setStoreAction:MTLStoreActionStore];
         id<MTLRenderCommandEncoder> enc = [commandBuffer renderCommandEncoderWithDescriptor:desc];
         
