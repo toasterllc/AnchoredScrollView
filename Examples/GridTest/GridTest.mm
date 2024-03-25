@@ -13,6 +13,7 @@
 #import "Grid.h"
 #import "GridLayerTypes.h"
 #import "Lib/Toastbox/Util.h"
+#import "Lib/Toastbox/Mac/Renderer.h"
 namespace fs = std::filesystem;
 
 static constexpr uint32_t _ImageWidth = 160;
@@ -579,6 +580,9 @@ int main(int argc, const char* argv[]) {
     using _ImageCompressedStoragePtr = std::unique_ptr<_ImageCompressedStorage>;
     
     std::vector<_ImageCompressedStoragePtr> images;
+    
+    id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
+    Toastbox::Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
     
     MTLTextureDescriptor* txtDesc = [MTLTextureDescriptor new];
     {
