@@ -679,9 +679,32 @@
             <rect key="contentRect" x="335" y="390" width="480" height="360"/>
             <rect key="screenRect" x="0.0" y="0.0" width="1512" height="944"/>
             <value key="minSize" type="size" width="480" height="360"/>
-            <view key="contentView" translatesAutoresizingMaskIntoConstraints="NO" id="EiT-Mj-1SZ" customClass="MainView">
+            <view key="contentView" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="EiT-Mj-1SZ">
                 <rect key="frame" x="0.0" y="0.0" width="480" height="360"/>
-                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                <subviews>
+                    <customView translatesAutoresizingMaskIntoConstraints="NO" id="XzP-ll-Q1R" customClass="MainView">
+                        <rect key="frame" x="0.0" y="29" width="480" height="331"/>
+                    </customView>
+                    <slider verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Oj9-go-dYU">
+                        <rect key="frame" x="138" y="6" width="204" height="17"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="200" id="yxS-tf-ERW"/>
+                        </constraints>
+                        <sliderCell key="cell" controlSize="mini" state="on" alignment="left" maxValue="1" doubleValue="0.5" tickMarkPosition="above" sliderType="linear" id="8Vg-io-qR7"/>
+                    </slider>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="Oj9-go-dYU" firstAttribute="centerX" secondItem="EiT-Mj-1SZ" secondAttribute="centerX" id="0ls-fi-e8G"/>
+                    <constraint firstAttribute="height" priority="250" constant="360" id="1Ig-3F-RuN"/>
+                    <constraint firstAttribute="bottom" secondItem="Oj9-go-dYU" secondAttribute="bottom" constant="8" id="KyA-f5-gKf"/>
+                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="480" id="PNd-9j-hyl"/>
+                    <constraint firstItem="Oj9-go-dYU" firstAttribute="top" secondItem="XzP-ll-Q1R" secondAttribute="bottom" constant="8" symbolic="YES" id="gul-DR-b8P"/>
+                    <constraint firstItem="XzP-ll-Q1R" firstAttribute="leading" secondItem="EiT-Mj-1SZ" secondAttribute="leading" id="hdg-He-dsc"/>
+                    <constraint firstAttribute="width" priority="250" constant="480" id="lCH-ZH-aL5"/>
+                    <constraint firstItem="XzP-ll-Q1R" firstAttribute="top" secondItem="EiT-Mj-1SZ" secondAttribute="top" id="vBO-7J-3et"/>
+                    <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="360" id="wyJ-i9-fQH"/>
+                    <constraint firstAttribute="trailing" secondItem="XzP-ll-Q1R" secondAttribute="trailing" id="xbx-xi-r1F"/>
+                </constraints>
             </view>
             <point key="canvasLocation" x="-446" y="-398"/>
         </window>

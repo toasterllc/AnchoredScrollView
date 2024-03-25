@@ -13,11 +13,6 @@ static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
 @interface GridLayer : AnchoredMetalDocumentLayer
 @end
 
-static CGColorSpaceRef _LinearSRGBColorSpace() {
-    static CGColorSpaceRef cs = CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB);
-    return cs;
-}
-
 @implementation GridLayer {
 @private
     id<MTLDevice> _device;
@@ -43,7 +38,7 @@ static CGColorSpaceRef _LinearSRGBColorSpace() {
     
     [self setDevice:[self preferredDevice]];
     [self setPixelFormat:_PixelFormat];
-    [self setColorspace:_LinearSRGBColorSpace()];
+    [self setColorspace:(__bridge CGColorSpaceRef)CFBridgingRelease(CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB))];
     
     _library = [_device newDefaultLibrary];
     _commandQueue = [_device newCommandQueue];
@@ -265,25 +260,13 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
 
 @implementation MainView
 
-static void _Init(MainView* self) {
+- (void)awakeFromNib {
     ScrollView* sv = [ScrollView new];
     [self addSubview:sv];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[sv]|"
         options:0 metrics:nil views:NSDictionaryOfVariableBindings(sv)]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[sv]|"
         options:0 metrics:nil views:NSDictionaryOfVariableBindings(sv)]];
-}
-
-- (instancetype)initWithCoder:(NSCoder*)coder {
-    if (!(self = [super initWithCoder:coder])) return nil;
-    _Init(self);
-    return self;
-}
-
-- (instancetype)initWithFrame:(NSRect)frame {
-    if (!(self = [super initWithFrame:frame])) return nil;
-    _Init(self);
-    return self;
 }
 
 @end
