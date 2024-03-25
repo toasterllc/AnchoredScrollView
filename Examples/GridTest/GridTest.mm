@@ -584,27 +584,13 @@ int main(int argc, const char* argv[]) {
     id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
     Toastbox::Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
     
-    MTLTextureDescriptor* txtDesc = [MTLTextureDescriptor new];
     {
-        constexpr MTLTextureUsage DstUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
-        [txtDesc setTextureType:MTLTextureType2D];
-        [txtDesc setWidth:_ImageWidth];
-        [txtDesc setHeight:_ImageHeight];
-        [txtDesc setPixelFormat:MTLPixelFormatRGBA8Unorm];
-        [txtDesc setUsage:DstUsage];
-    }
-    
-    {
-        id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
-        id<MTLCommandQueue> commandQueue = [dev newCommandQueue];
-        
         MTKTextureLoader* txtLoader = [[MTKTextureLoader alloc] initWithDevice:dev];
         const fs::path imagesDir = "/Users/dave/repos/AnchoredScrollView/Examples/GridTest/images";
         for (const fs::path& p : fs::recursive_directory_iterator(imagesDir)) @autoreleasepool {
             if (!_IsImageFile(p)) continue;
-            
-            id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
-            id<MTLTexture> txt = [dev newTextureWithDescriptor:txtDesc];
+            constexpr MTLTextureUsage TxtUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
+            auto txt = renderer.textureCreate(MTLPixelFormatRGBA8Unorm, _ImageWidth, _ImageHeight, TxtUsage);
             
             {
                 NSURL* url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:p.c_str()]];
@@ -628,13 +614,10 @@ int main(int argc, const char* argv[]) {
                 {
                     MPSImageLanczosScale* filter = [[MPSImageLanczosScale alloc] initWithDevice:dev];
                     [filter setScaleTransform:&transform];
-                    [filter encodeToCommandBuffer:commandBuffer sourceTexture:src destinationTexture:txt];
+                    [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txt];
                 }
-                
-                [commandBuffer commit];
-                [commandBuffer waitUntilCompleted];
+                renderer.commitAndWait();
             }
-            
             
             // Compress thumbnail into `imageCompressed`
             _ImageCompressedStoragePtr imageCompressed = std::make_unique<_ImageCompressedStorage>();
