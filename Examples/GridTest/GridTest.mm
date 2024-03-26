@@ -16,6 +16,7 @@
 #import "Lib/Toastbox/Mac/Grid.h"
 #import "Lib/Toastbox/Mmap.h"
 #import "Lib/Toastbox/LRU.h"
+#import "Lib/Toastbox/Math.h"
 namespace fs = std::filesystem;
 
 struct _TextureArray {
@@ -25,14 +26,22 @@ struct _TextureArray {
 
 static constexpr size_t _ImageWidth = 160;
 static constexpr size_t _ImageHeight = 90;
+static constexpr size_t _ImageCompressedBlockSize = 4;
+//static constexpr size_t _ImageCount = 1<<16; // 65,536
 //static constexpr size_t _ImageCount = 1<<18; // 262,144
 static constexpr size_t _ImageCount = 1<<20; // 1,048,576
 // _ImageCount must be an even multiple of _TextureArray::Count
 static_assert(!(_ImageCount % _TextureArray::Count));
 
+
+
 using _ImageStorage = std::array<uint8_t, _ImageWidth*_ImageHeight*4>;
 using _ImageStoragePtr = std::unique_ptr<_ImageStorage>;
-using _ImageCompressedStorage = std::array<uint8_t, _ImageWidth*_ImageHeight>;
+using _ImageCompressedStorage = std::array<uint8_t,
+    Toastbox::Ceil((size_t)_ImageCompressedBlockSize,_ImageWidth)* // Ceil _ImageWidth to ASTC block size
+    Toastbox::Ceil((size_t)_ImageCompressedBlockSize,_ImageHeight) // Ceil _ImageHeight to ASTC block size
+>;
+
 using _ImageCompressedStoragePtr = std::unique_ptr<_ImageCompressedStorage>;
 
 static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
@@ -562,6 +571,16 @@ static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount)
                                 at_flags_print_debug_info
                             );
                             
+//                            at_size_t meow = at_encoder_get_block_counts(compressor, { _ImageWidth, _ImageHeight, 1 });
+                            
+//                            at_block_buffer_t buf;
+//                            at_block_features_t at_block_get_features( _ATBlockFormatForMTLPixelFormat<_PixelFormatCompressed>(),
+//                                               &buf,
+//                                               at_size_t validSize,
+//                                               size_t size,
+//                                               size_t * __nullable outSize,
+//                                               at_flags_t flags ) /* AT_AVAILABILITY_v3 */;
+                            
                             if (cr < 0) abort();
                         }
                         
@@ -622,5 +641,6 @@ int main(int argc, const char* argv[]) {
     const fs::path bundleDir = fs::path([[[NSBundle mainBundle] bundlePath] UTF8String]).parent_path();
     const fs::path mmapPath = bundleDir / "images.mmap";
     _ImagesMmap = _ImagesCreate(mmapPath, _ImageCount);
+    printf("%zu\n", sizeof(_ImageCompressedStorage));
     return NSApplicationMain(argc, argv);
 }
