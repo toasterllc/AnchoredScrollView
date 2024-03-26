@@ -31,7 +31,7 @@ vertex VertexOutput VertexShader(
     const float2 vnorm = float2(vabs) / ctx.viewSize;
     
     return VertexOutput{
-        .idx = idxGrid,
+        .idx = iidx,
         .posView = ctx.transform * float4(vnorm, 0, 1),
         .posNorm = _Verts[vidx],
         .posPx = float2(voff),

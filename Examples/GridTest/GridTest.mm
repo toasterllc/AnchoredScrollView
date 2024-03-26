@@ -18,9 +18,16 @@
 #import "Lib/Toastbox/LRU.h"
 namespace fs = std::filesystem;
 
+struct _TextureArray {
+    static constexpr size_t Count = 128;
+    id<MTLTexture> txt = nil;
+};
+
 static constexpr size_t _ImageWidth = 160;
 static constexpr size_t _ImageHeight = 90;
-static constexpr size_t _ImageCount = 1000;
+static constexpr size_t _ImageCount = 1<<18;
+// _ImageCount must be an even multiple of _TextureArray::Count
+static_assert(!(_ImageCount % _TextureArray::Count));
 
 using _ImageStorage = std::array<uint8_t, _ImageWidth*_ImageHeight*4>;
 using _ImageStoragePtr = std::unique_ptr<_ImageStorage>;
@@ -41,11 +48,6 @@ static constexpr CGSize _CellSizeDefault = { _ImageWidth, _ImageHeight };
 static constexpr CGSize _CellSpacingDefault = { 10, 10 };
 
 static Toastbox::Mmap _ImagesMmap;
-
-struct _TextureArray {
-    static constexpr size_t Count = 128;
-    id<MTLTexture> txt = nil;
-};
 
 @interface GridLayer : AnchoredMetalDocumentLayer
 @end
@@ -190,7 +192,8 @@ static MTLTextureDescriptor* _TextureDescriptor() {
     ta.txt = txt;
     
     for (size_t i=0; i<_TextureArray::Count; i++) {
-        const uint8_t* b = _ImagesMmap.data() + i*sizeof(_ImageCompressedStorage);
+        const uint8_t* b = _ImagesMmap.data((idx+i)*sizeof(_ImageCompressedStorage), sizeof(_ImageCompressedStorage));
+//        printf("generating texture @ %zu\n", idx+i);
         [txt replaceRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0
             slice:i withBytes:b bytesPerRow:_ImageWidth*4 bytesPerImage:0];
     }
@@ -671,9 +674,11 @@ int main(int argc, const char* argv[]) {
     id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
     Toastbox::Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
     
+    printf("Loading images...\n");
     {
         MTKTextureLoader* txtLoader = [[MTKTextureLoader alloc] initWithDevice:dev];
-        const fs::path imagesDir = "/Users/dave/repos/AnchoredScrollView/Examples/GridTest/images";
+        const fs::path imagesDir = "/Users/dave/Desktop/TestImages-5k";
+//        const fs::path imagesDir = "/Users/dave/repos/AnchoredScrollView/Examples/GridTest/images";
         for (const fs::path& p : fs::recursive_directory_iterator(imagesDir)) @autoreleasepool {
             if (!_IsImageFile(p)) continue;
             constexpr MTLTextureUsage TxtUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
@@ -911,7 +916,7 @@ int main(int argc, const char* argv[]) {
 //        compressor.encode(tmpStorage.data(), rec.thumb.data);
 //    }
     
-    const size_t MmapLen = sizeof(_ImageCompressedStorage) * _ImageCount;
+    const size_t MmapLen = sizeof(_ImageCompressedStorage) * (_ImageCount + 1);
     const size_t MmapCap = Toastbox::Mmap::PageCeil(MmapLen);
     
     _ImagesMmap = Toastbox::Mmap("/Users/dave/Desktop/images.mmap", MmapCap, O_CREAT|O_RDWR);
