@@ -669,181 +669,123 @@ static constexpr at_block_format_t _ATBlockFormatForMTLPixelFormat() {
 //}
 
 int main(int argc, const char* argv[]) {
+    std::mutex imagesLock;
     std::vector<_ImageCompressedStoragePtr> images;
     
-    id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
-    Toastbox::Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
-    
-    printf("Loading images...\n");
+    printf("Loading source images...\n");
     {
-        MTKTextureLoader* txtLoader = [[MTKTextureLoader alloc] initWithDevice:dev];
+        std::vector<fs::path> imagePaths;
         const fs::path imagesDir = "/Users/dave/Desktop/TestImages-5k";
 //        const fs::path imagesDir = "/Users/dave/repos/AnchoredScrollView/Examples/GridTest/images";
         for (const fs::path& p : fs::recursive_directory_iterator(imagesDir)) @autoreleasepool {
             if (!_IsImageFile(p)) continue;
-            constexpr MTLTextureUsage TxtUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
-            auto txt = renderer.textureCreate(MTLPixelFormatRGBA8Unorm, _ImageWidth, _ImageHeight, TxtUsage);
-            
-            {
-                NSURL* url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:p.c_str()]];
-                id<MTLTexture> src = [txtLoader newTextureWithContentsOfURL:url options:nil error:nil];
-                
-                // Calculate transform to fit source image in thumbnail aspect ratio
-                MPSScaleTransform transform;
-                {
-                    const float srcAspect = (float)[src width] / [src height];
-                    const float dstAspect = (float)_ImageWidth / _ImageHeight;
-                    const float scale = (srcAspect<dstAspect ? ((float)_ImageWidth/[src width]) : ((float)_ImageHeight/[src height]));
-                    transform = {
-                        .scaleX = scale,
-                        .scaleY = scale,
-                        .translateX = 0,
-                        .translateY = 0,
-                    };
-                }
-                
-                // Scale image
-                {
-                    MPSImageLanczosScale* filter = [[MPSImageLanczosScale alloc] initWithDevice:dev];
-                    [filter setScaleTransform:&transform];
-                    [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txt];
-                }
-                renderer.commitAndWait();
-            }
-            
-            // Compress thumbnail into `imageCompressed`
-            _ImageCompressedStoragePtr imageCompressed = std::make_unique<_ImageCompressedStorage>();
-            {
-                _ImageStoragePtr image = std::make_unique<_ImageStorage>();
-                
-    //            constexpr float CompressErrorThreshold = 0.0009765625;    // Fast
-                constexpr float CompressErrorThreshold = 0.00003051757812;  // High quality
-                
-                [txt getBytes:image.get() bytesPerRow:_ImageWidth*4
-                    fromRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0];
-                
-                const at_texel_region_t srcTexels = {
-                    .texels = image.get(),
-                    .validSize = {
-                        .x = _ImageWidth,
-                        .y = _ImageHeight,
-                        .z = 1,
-                    },
-                    .rowBytes = _ImageWidth*4,
-                    .sliceBytes = 0,
-                };
-                
-                const at_block_buffer_t dstBuffer = {
-                    .blocks = imageCompressed.get(),
-                    .rowBytes = _ImageWidth*4,
-                    .sliceBytes = 0,
-                };
-                
-                at_encoder_t compressor = at_encoder_create(
-                    at_texel_format_rgba8_unorm,
-                    at_alpha_opaque,
-                    _ATBlockFormatForMTLPixelFormat<_PixelFormatCompressed>(),
-                    at_alpha_opaque,
-                    nullptr
-                );
-                
-                const float cr = at_encoder_compress_texels(
-                    compressor,
-                    &srcTexels,
-                    &dstBuffer,
-                    CompressErrorThreshold,
-            //        at_flags_default
-                    at_flags_print_debug_info
-                );
-                
-                if (cr < 0) abort();
-            }
-            
-            images.push_back(std::move(imageCompressed));
-            
-            
-            
-            
-            
-            
-            
-//            // Load thumbnail from `url`, store in txtRgba32
-//            Renderer::Txt txtRgba32;
-//            {
-//                NSDictionary*const loadOpts = @{
-//                    MTKTextureLoaderOptionSRGB: @YES,
-//                };
-//                id<MTLTexture> src = [txtLoader newTextureWithContentsOfURL:url options:loadOpts error:nil];
-//
-//                // Calculate transform to fit source image in thumbnail aspect ratio
-//                MPSScaleTransform transform;
-//                {
-//                    const float srcAspect = (float)[src width] / [src height];
-//                    const float dstAspect = (float)ImageThumb::ThumbWidth / _ImageHeight;
-//                    const float scale = (srcAspect<dstAspect ? ((float)ImageThumb::ThumbWidth / [src width]) : ((float)_ImageHeight / [src height]));
-//                    transform = {
-//                        .scaleX = scale,
-//                        .scaleY = scale,
-//                        .translateX = 0,
-//                        .translateY = 0,
-//                    };
-//                }
-//
-//                // Scale image
-//                constexpr MTLTextureUsage DstUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
-//                txtRgba32 = renderer.textureCreate(MTLPixelFormatRGBA32Float, ImageThumb::ThumbWidth, _ImageHeight, DstUsage);
-//                {
-//                    MPSImageLanczosScale* filter = [[MPSImageLanczosScale alloc] initWithDevice:renderer.dev];
-//                    [filter setScaleTransform:&transform];
-//                    [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txtRgba32];
-//                }
-//            }
-//
-//            // Process image, store in txtRgba8
-//            const Renderer::Txt txtRgba8 = renderer.textureCreate(txtRgba32, MTLPixelFormatRGBA8Unorm);
-//            {
-//                const ImageOptions& imageOpts = rec.options;
-//                // colorMatrix: converts colorspace from LSRGB.D65 -> ProPhotoRGB.D50, which Pipeline::Process expects
-//                const ColorMatrix colorMatrix = {
-//                   0.5293458, 0.3300728, 0.1405813,
-//                   0.0983744, 0.8734610, 0.0281647,
-//                   0.0168832, 0.1176725, 0.8654443,
-//                };
-//                const Pipeline::Options popts = {
-//                    .colorMatrix = colorMatrix,
-//                    .exposure = (float)imageOpts.exposure,
-//                    .saturation = (float)imageOpts.saturation,
-//                    .brightness = (float)imageOpts.brightness,
-//                    .contrast = (float)imageOpts.contrast,
-//                    .localContrast = {
-//                        .en = (imageOpts.localContrast.amount!=0 && imageOpts.localContrast.radius!=0),
-//                        .amount = (float)imageOpts.localContrast.amount,
-//                        .radius = (float)imageOpts.localContrast.radius,
-//                    },
-//                };
-//
-//                Pipeline::Run(renderer, popts, txtRgba32, txtRgba8);
-//                renderer.sync(txtRgba8);
-//            }
-//
-//            // Compress thumbnail, store in rec.thumb.data
-//            {
-//                renderer.commitAndWait();
-//
-//                [txtRgba8 getBytes:tmpStorage.data() bytesPerRow:ImageThumb::ThumbWidth*4
-//                    fromRegion:MTLRegionMake2D(0,0,ImageThumb::ThumbWidth,_ImageHeight) mipmapLevel:0];
-//
-//                compressor.encode(tmpStorage.data(), rec.thumb.data);
-//            }
-
-            
-            
-            
-            
+            imagePaths.push_back(p);
         }
+        
+        std::atomic<size_t> pathIdx = 0;
+        std::vector<std::thread> workers;
+        const uint32_t threadCount = std::max(1,(int)std::thread::hardware_concurrency());
+        for (uint32_t i=0; i<threadCount; i++) {
+            workers.emplace_back([&](){
+                id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
+                Toastbox::Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
+                MTKTextureLoader* txtLoader = [[MTKTextureLoader alloc] initWithDevice:dev];
+                for (;;) @autoreleasepool {
+                    const auto idx = pathIdx.fetch_add(1);
+                    if (idx >= imagePaths.size()) break;
+                    
+                    const fs::path path = imagePaths.at(idx);
+                    
+                    constexpr MTLTextureUsage TxtUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
+                    auto txt = renderer.textureCreate(MTLPixelFormatRGBA8Unorm, _ImageWidth, _ImageHeight, TxtUsage);
+                    
+                    {
+                        NSURL* url = [NSURL fileURLWithPath:@(path.c_str())];
+                        id<MTLTexture> src = [txtLoader newTextureWithContentsOfURL:url options:nil error:nil];
+                        
+                        // Calculate transform to fit source image in thumbnail aspect ratio
+                        MPSScaleTransform transform;
+                        {
+                            const float srcAspect = (float)[src width] / [src height];
+                            const float dstAspect = (float)_ImageWidth / _ImageHeight;
+                            const float scale = (srcAspect<dstAspect ? ((float)_ImageWidth/[src width]) : ((float)_ImageHeight/[src height]));
+                            transform = {
+                                .scaleX = scale,
+                                .scaleY = scale,
+                                .translateX = 0,
+                                .translateY = 0,
+                            };
+                        }
+                        
+                        // Scale image
+                        {
+                            MPSImageLanczosScale* filter = [[MPSImageLanczosScale alloc] initWithDevice:dev];
+                            [filter setScaleTransform:&transform];
+                            [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txt];
+                        }
+                        renderer.commitAndWait();
+                    }
+                    
+                    // Compress thumbnail into `imageCompressed`
+                    _ImageCompressedStoragePtr imageCompressed = std::make_unique<_ImageCompressedStorage>();
+                    {
+                        _ImageStoragePtr image = std::make_unique<_ImageStorage>();
+                        
+            //            constexpr float CompressErrorThreshold = 0.0009765625;    // Fast
+                        constexpr float CompressErrorThreshold = 0.00003051757812;  // High quality
+                        
+                        [txt getBytes:image.get() bytesPerRow:_ImageWidth*4
+                            fromRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0];
+                        
+                        const at_texel_region_t srcTexels = {
+                            .texels = image.get(),
+                            .validSize = {
+                                .x = _ImageWidth,
+                                .y = _ImageHeight,
+                                .z = 1,
+                            },
+                            .rowBytes = _ImageWidth*4,
+                            .sliceBytes = 0,
+                        };
+                        
+                        const at_block_buffer_t dstBuffer = {
+                            .blocks = imageCompressed.get(),
+                            .rowBytes = _ImageWidth*4,
+                            .sliceBytes = 0,
+                        };
+                        
+                        at_encoder_t compressor = at_encoder_create(
+                            at_texel_format_rgba8_unorm,
+                            at_alpha_opaque,
+                            _ATBlockFormatForMTLPixelFormat<_PixelFormatCompressed>(),
+                            at_alpha_opaque,
+                            nullptr
+                        );
+                        
+                        const float cr = at_encoder_compress_texels(
+                            compressor,
+                            &srcTexels,
+                            &dstBuffer,
+                            CompressErrorThreshold,
+                    //        at_flags_default
+                            at_flags_print_debug_info
+                        );
+                        
+                        if (cr < 0) abort();
+                    }
+                    
+                    {
+                        auto lock = std::unique_lock(imagesLock);
+                        images.push_back(std::move(imageCompressed));
+                    }
+                }
+            });
+        }
+        
+        // Wait for workers to complete
+        for (std::thread& t : workers) t.join();
     }
-    
-    
+    printf("-> Done\n\n");
     
     
     
