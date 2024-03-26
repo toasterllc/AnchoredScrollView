@@ -25,7 +25,8 @@ struct _TextureArray {
 
 static constexpr size_t _ImageWidth = 160;
 static constexpr size_t _ImageHeight = 90;
-static constexpr size_t _ImageCount = 1<<18;
+static constexpr size_t _ImageCount = 1<<18; // 262,144
+//static constexpr size_t _ImageCount = 1<<20; // 1,048,576
 // _ImageCount must be an even multiple of _TextureArray::Count
 static_assert(!(_ImageCount % _TextureArray::Count));
 
@@ -144,7 +145,7 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
 }
 
 - (void)setCellScale:(float)x {
-    constexpr float CellScaleMin = 0.025;
+    constexpr float CellScaleMin = 0.1;
     constexpr float CellScaleMax = 5.0;
     x *= CellScaleMax;
     x = std::max(CellScaleMin, x);
@@ -668,226 +669,182 @@ static constexpr at_block_format_t _ATBlockFormatForMTLPixelFormat() {
 //    system((std::string("open ") + outputPath).c_str());
 //}
 
-int main(int argc, const char* argv[]) {
-    std::mutex imagesLock;
-    std::vector<_ImageCompressedStoragePtr> images;
-    
-    printf("Loading source images...\n");
-    {
-        std::vector<fs::path> imagePaths;
-        const fs::path imagesDir = "/Users/dave/Desktop/TestImages-5k";
-//        const fs::path imagesDir = "/Users/dave/repos/AnchoredScrollView/Examples/GridTest/images";
-        for (const fs::path& p : fs::recursive_directory_iterator(imagesDir)) @autoreleasepool {
-            if (!_IsImageFile(p)) continue;
-            imagePaths.push_back(p);
-        }
-        
-        std::atomic<size_t> pathIdx = 0;
-        std::vector<std::thread> workers;
-        const uint32_t threadCount = std::max(1,(int)std::thread::hardware_concurrency());
-        for (uint32_t i=0; i<threadCount; i++) {
-            workers.emplace_back([&](){
-                id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
-                Toastbox::Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
-                MTKTextureLoader* txtLoader = [[MTKTextureLoader alloc] initWithDevice:dev];
-                for (;;) @autoreleasepool {
-                    const auto idx = pathIdx.fetch_add(1);
-                    if (idx >= imagePaths.size()) break;
-                    
-                    const fs::path path = imagePaths.at(idx);
-                    
-                    constexpr MTLTextureUsage TxtUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
-                    auto txt = renderer.textureCreate(MTLPixelFormatRGBA8Unorm, _ImageWidth, _ImageHeight, TxtUsage);
-                    
-                    {
-                        NSURL* url = [NSURL fileURLWithPath:@(path.c_str())];
-                        id<MTLTexture> src = [txtLoader newTextureWithContentsOfURL:url options:nil error:nil];
-                        
-                        // Calculate transform to fit source image in thumbnail aspect ratio
-                        MPSScaleTransform transform;
-                        {
-                            const float srcAspect = (float)[src width] / [src height];
-                            const float dstAspect = (float)_ImageWidth / _ImageHeight;
-                            const float scale = (srcAspect<dstAspect ? ((float)_ImageWidth/[src width]) : ((float)_ImageHeight/[src height]));
-                            transform = {
-                                .scaleX = scale,
-                                .scaleY = scale,
-                                .translateX = 0,
-                                .translateY = 0,
-                            };
-                        }
-                        
-                        // Scale image
-                        {
-                            MPSImageLanczosScale* filter = [[MPSImageLanczosScale alloc] initWithDevice:dev];
-                            [filter setScaleTransform:&transform];
-                            [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txt];
-                        }
-                        renderer.commitAndWait();
-                    }
-                    
-                    // Compress thumbnail into `imageCompressed`
-                    _ImageCompressedStoragePtr imageCompressed = std::make_unique<_ImageCompressedStorage>();
-                    {
-                        _ImageStoragePtr image = std::make_unique<_ImageStorage>();
-                        
-            //            constexpr float CompressErrorThreshold = 0.0009765625;    // Fast
-                        constexpr float CompressErrorThreshold = 0.00003051757812;  // High quality
-                        
-                        [txt getBytes:image.get() bytesPerRow:_ImageWidth*4
-                            fromRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0];
-                        
-                        const at_texel_region_t srcTexels = {
-                            .texels = image.get(),
-                            .validSize = {
-                                .x = _ImageWidth,
-                                .y = _ImageHeight,
-                                .z = 1,
-                            },
-                            .rowBytes = _ImageWidth*4,
-                            .sliceBytes = 0,
-                        };
-                        
-                        const at_block_buffer_t dstBuffer = {
-                            .blocks = imageCompressed.get(),
-                            .rowBytes = _ImageWidth*4,
-                            .sliceBytes = 0,
-                        };
-                        
-                        at_encoder_t compressor = at_encoder_create(
-                            at_texel_format_rgba8_unorm,
-                            at_alpha_opaque,
-                            _ATBlockFormatForMTLPixelFormat<_PixelFormatCompressed>(),
-                            at_alpha_opaque,
-                            nullptr
-                        );
-                        
-                        const float cr = at_encoder_compress_texels(
-                            compressor,
-                            &srcTexels,
-                            &dstBuffer,
-                            CompressErrorThreshold,
-                    //        at_flags_default
-                            at_flags_print_debug_info
-                        );
-                        
-                        if (cr < 0) abort();
-                    }
-                    
-                    {
-                        auto lock = std::unique_lock(imagesLock);
-                        images.push_back(std::move(imageCompressed));
-                    }
-                }
-            });
-        }
-        
-        // Wait for workers to complete
-        for (std::thread& t : workers) t.join();
-    }
-    printf("-> Done\n\n");
-    
-    
-    
-//    // Load thumbnail from `url`, store in txtRgba32
-//    Renderer::Txt txtRgba32;
-//    {
-//        NSDictionary*const loadOpts = @{
-//            MTKTextureLoaderOptionSRGB: @YES,
-//        };
-//        id<MTLTexture> src = [txtLoader newTextureWithContentsOfURL:url options:loadOpts error:nil];
-//        
-//        // Calculate transform to fit source image in thumbnail aspect ratio
-//        MPSScaleTransform transform;
-//        {
-//            const float srcAspect = (float)[src width] / [src height];
-//            const float dstAspect = (float)ImageThumb::ThumbWidth / _ImageHeight;
-//            const float scale = (srcAspect<dstAspect ? ((float)ImageThumb::ThumbWidth / [src width]) : ((float)_ImageHeight / [src height]));
-//            transform = {
-//                .scaleX = scale,
-//                .scaleY = scale,
-//                .translateX = 0,
-//                .translateY = 0,
-//            };
-//        }
-//        
-//        // Scale image
-//        constexpr MTLTextureUsage DstUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
-//        txtRgba32 = renderer.textureCreate(MTLPixelFormatRGBA32Float, ImageThumb::ThumbWidth, _ImageHeight, DstUsage);
-//        {
-//            MPSImageLanczosScale* filter = [[MPSImageLanczosScale alloc] initWithDevice:renderer.dev];
-//            [filter setScaleTransform:&transform];
-//            [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txtRgba32];
-//        }
-//    }
-//    
-//    // Process image, store in txtRgba8
-//    const Renderer::Txt txtRgba8 = renderer.textureCreate(txtRgba32, MTLPixelFormatRGBA8Unorm);
-//    {
-//        const ImageOptions& imageOpts = rec.options;
-//        // colorMatrix: converts colorspace from LSRGB.D65 -> ProPhotoRGB.D50, which Pipeline::Process expects
-//        const ColorMatrix colorMatrix = {
-//           0.5293458, 0.3300728, 0.1405813,
-//           0.0983744, 0.8734610, 0.0281647,
-//           0.0168832, 0.1176725, 0.8654443,
-//        };
-//        const Pipeline::Options popts = {
-//            .colorMatrix = colorMatrix,
-//            .exposure = (float)imageOpts.exposure,
-//            .saturation = (float)imageOpts.saturation,
-//            .brightness = (float)imageOpts.brightness,
-//            .contrast = (float)imageOpts.contrast,
-//            .localContrast = {
-//                .en = (imageOpts.localContrast.amount!=0 && imageOpts.localContrast.radius!=0),
-//                .amount = (float)imageOpts.localContrast.amount,
-//                .radius = (float)imageOpts.localContrast.radius,
-//            },
-//        };
-//        
-//        Pipeline::Run(renderer, popts, txtRgba32, txtRgba8);
-//        renderer.sync(txtRgba8);
-//    }
-//    
-//    // Compress thumbnail, store in rec.thumb.data
-//    {
-//        renderer.commitAndWait();
-//        
-//        [txtRgba8 getBytes:tmpStorage.data() bytesPerRow:ImageThumb::ThumbWidth*4
-//            fromRegion:MTLRegionMake2D(0,0,ImageThumb::ThumbWidth,_ImageHeight) mipmapLevel:0];
-//        
-//        compressor.encode(tmpStorage.data(), rec.thumb.data);
-//    }
-    
-    const size_t MmapLen = sizeof(_ImageCompressedStorage) * (_ImageCount + 1);
+static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount) {
+    const size_t MmapLen = sizeof(_ImageCompressedStorage) * (imageCount + 1);
     const size_t MmapCap = Toastbox::Mmap::PageCeil(MmapLen);
+    Toastbox::Mmap mmap = Toastbox::Mmap(mmapPath, MmapCap, O_CREAT|O_RDWR, 0644);
     
-    _ImagesMmap = Toastbox::Mmap("/Users/dave/Desktop/images.mmap", MmapCap, O_CREAT|O_RDWR);
-    _ImagesMmap.len(MmapLen);
+    // Short-circuit if the file already exists and its length is the length we're about to generate.
+    // In that case we'll assume the file's already been created and re-use it.
+    if (mmap.len() == MmapLen) return mmap;
     
-    // Scatter `images` into our `_ImagesMmap` mmap
-    std::atomic<uint32_t> workIdx = 0;
+    // Set the file size
+    mmap.len(MmapLen);
+    
+    std::vector<fs::path> imagePaths;
+    
+    struct {
+        std::mutex lock;
+        std::vector<_ImageCompressedStoragePtr> vector;
+    } images;
+    
     {
-        std::vector<std::thread> workers;
-        const uint32_t threadCount = std::max(1,(int)std::thread::hardware_concurrency());
-        for (uint32_t i=0; i<threadCount; i++) {
-            workers.emplace_back([&](){
-                for (;;) @autoreleasepool {
-                    const auto dstIdx = workIdx.fetch_add(1);
-                    if (dstIdx >= _ImageCount) break;
-                    
-                    const uint32_t srcIdx = arc4random_uniform((uint32_t)images.size());
-                    const uint8_t* src = &images.at(srcIdx)->at(0);
-                    uint8_t* dst = _ImagesMmap.data(dstIdx * sizeof(_ImageCompressedStorage), sizeof(_ImageCompressedStorage));
-                    memcpy(dst, src, sizeof(_ImageCompressedStorage));
-                }
-            });
+        const uint32_t ThreadCount = std::max(1,(int)std::thread::hardware_concurrency());
+        printf("Loading source images (on %ju threads)...\n", (uintmax_t)ThreadCount);
+        {
+            const fs::path imagesDir = "/Users/dave/Desktop/TestImages-5k";
+    //        const fs::path imagesDir = "/Users/dave/repos/AnchoredScrollView/Examples/GridTest/images";
+            for (const fs::path& p : fs::recursive_directory_iterator(imagesDir)) @autoreleasepool {
+                if (!_IsImageFile(p)) continue;
+                imagePaths.push_back(p);
+            }
+            
+            std::atomic<size_t> pathIdx = 0;
+            std::vector<std::thread> workers;
+            for (uint32_t i=0; i<ThreadCount; i++) {
+                workers.emplace_back([&](){
+                    id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
+                    Toastbox::Renderer renderer(dev, [dev newDefaultLibrary], [dev newCommandQueue]);
+                    MTKTextureLoader* txtLoader = [[MTKTextureLoader alloc] initWithDevice:dev];
+                    for (;;) @autoreleasepool {
+                        const auto idx = pathIdx.fetch_add(1);
+                        if (idx >= imagePaths.size()) break;
+                        
+                        const fs::path path = imagePaths.at(idx);
+                        
+                        constexpr MTLTextureUsage TxtUsage = MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
+                        auto txt = renderer.textureCreate(MTLPixelFormatRGBA8Unorm, _ImageWidth, _ImageHeight, TxtUsage);
+                        
+                        {
+                            NSURL* url = [NSURL fileURLWithPath:@(path.c_str())];
+                            id<MTLTexture> src = [txtLoader newTextureWithContentsOfURL:url options:nil error:nil];
+                            
+                            // Calculate transform to fit source image in thumbnail aspect ratio
+                            MPSScaleTransform transform;
+                            {
+                                const float srcAspect = (float)[src width] / [src height];
+                                const float dstAspect = (float)_ImageWidth / _ImageHeight;
+                                const float scale = (srcAspect<dstAspect ? ((float)_ImageWidth/[src width]) : ((float)_ImageHeight/[src height]));
+                                transform = {
+                                    .scaleX = scale,
+                                    .scaleY = scale,
+                                    .translateX = 0,
+                                    .translateY = 0,
+                                };
+                            }
+                            
+                            // Scale image
+                            {
+                                MPSImageLanczosScale* filter = [[MPSImageLanczosScale alloc] initWithDevice:dev];
+                                [filter setScaleTransform:&transform];
+                                [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txt];
+                            }
+                            renderer.commitAndWait();
+                        }
+                        
+                        // Compress thumbnail into `imageCompressed`
+                        _ImageCompressedStoragePtr imageCompressed = std::make_unique<_ImageCompressedStorage>();
+                        {
+                            _ImageStoragePtr image = std::make_unique<_ImageStorage>();
+                            
+                //            constexpr float CompressErrorThreshold = 0.0009765625;    // Fast
+                            constexpr float CompressErrorThreshold = 0.00003051757812;  // High quality
+                            
+                            [txt getBytes:image.get() bytesPerRow:_ImageWidth*4
+                                fromRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0];
+                            
+                            const at_texel_region_t srcTexels = {
+                                .texels = image.get(),
+                                .validSize = {
+                                    .x = _ImageWidth,
+                                    .y = _ImageHeight,
+                                    .z = 1,
+                                },
+                                .rowBytes = _ImageWidth*4,
+                                .sliceBytes = 0,
+                            };
+                            
+                            const at_block_buffer_t dstBuffer = {
+                                .blocks = imageCompressed.get(),
+                                .rowBytes = _ImageWidth*4,
+                                .sliceBytes = 0,
+                            };
+                            
+                            at_encoder_t compressor = at_encoder_create(
+                                at_texel_format_rgba8_unorm,
+                                at_alpha_opaque,
+                                _ATBlockFormatForMTLPixelFormat<_PixelFormatCompressed>(),
+                                at_alpha_opaque,
+                                nullptr
+                            );
+                            
+                            const float cr = at_encoder_compress_texels(
+                                compressor,
+                                &srcTexels,
+                                &dstBuffer,
+                                CompressErrorThreshold,
+                        //        at_flags_default
+                                at_flags_print_debug_info
+                            );
+                            
+                            if (cr < 0) abort();
+                        }
+                        
+                        {
+                            auto lock = std::unique_lock(images.lock);
+                            images.vector.push_back(std::move(imageCompressed));
+                        }
+                    }
+                });
+            }
+            
+            // Wait for workers to complete
+            for (std::thread& t : workers) t.join();
         }
-        
-        // Wait for workers to complete
-        for (std::thread& t : workers) t.join();
+        printf("-> Done\n\n");
     }
     
+    // Generate `imageCount` images by scatting random elements of `images` into `mmap`
+    {
+        // This process is IO bound (RAM->flash), and is much faster with a single thread than multiple threads
+        const uint32_t ThreadCount = 1;
+        printf("Generating %ju images (from %ju source images, on %ju threads)\n",
+            (uintmax_t)imageCount, (uintmax_t)images.vector.size(), (uintmax_t)ThreadCount);
+        
+        auto startTime = std::chrono::steady_clock::now();
+        {
+            // Scatter `images` into our `mmap` mmap
+            std::atomic<uint32_t> workIdx = 0;
+            {
+                std::vector<std::thread> workers;
+                for (uint32_t i=0; i<ThreadCount; i++) {
+                    workers.emplace_back([&](){
+                        for (;;) @autoreleasepool {
+                            const auto dstIdx = workIdx.fetch_add(1);
+                            if (dstIdx >= imageCount) break;
+                            
+                            const uint32_t srcIdx = arc4random_uniform((uint32_t)images.vector.size());
+                            const uint8_t* src = &images.vector.at(srcIdx)->at(0);
+                            uint8_t* dst = mmap.data(dstIdx * sizeof(_ImageCompressedStorage), sizeof(_ImageCompressedStorage));
+    //                        printf("[%p] Copying\n", [NSThread currentThread]);
+                            memcpy(dst, src, sizeof(_ImageCompressedStorage));
+                        }
+                    });
+                }
+                
+                // Wait for workers to complete
+                for (std::thread& t : workers) t.join();
+            }
+        }
+        auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-startTime);
+        printf("-> Done (took %ju ms)\n\n", (uintmax_t)durationMs.count());
+    }
     
-    
+    return mmap;
+}
+
+int main(int argc, const char* argv[]) {
+    const fs::path MmapPath = "/Users/dave/Desktop/images.mmap";
+    _ImagesMmap = _ImagesCreate(MmapPath, _ImageCount);
     return NSApplicationMain(argc, argv);
 }
