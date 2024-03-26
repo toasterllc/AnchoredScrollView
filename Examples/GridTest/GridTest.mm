@@ -10,16 +10,16 @@
 #import "AnchoredScrollView.h"
 #import "AnchoredDocumentView.h"
 #import "AnchoredMetalDocumentLayer.h"
-#import "Grid.h"
 #import "GridLayerTypes.h"
 #import "Lib/Toastbox/Util.h"
 #import "Lib/Toastbox/Mac/Renderer.h"
+#import "Lib/Toastbox/Mac/Grid.h"
 #import "Lib/Toastbox/Mmap.h"
 #import "Lib/Toastbox/LRU.h"
 namespace fs = std::filesystem;
 
 struct _TextureArray {
-    static constexpr size_t Count = 512;
+    static constexpr size_t Count = 2048;
     id<MTLTexture> txt = nil;
 };
 
@@ -65,7 +65,7 @@ static Toastbox::Mmap _ImagesMmap;
     id<MTLRenderPipelineState> _pipelineState;
     
     CGFloat _containerWidth;
-    Grid _grid;
+    Toastbox::Grid _grid;
     float _cellScale;
     
     Toastbox::LRU<uint32_t,_TextureArray,8> _txts;
@@ -126,7 +126,7 @@ static Toastbox::Mmap _ImagesMmap;
     return self;
 }
 
-static Grid::Rect _GridRectFromCGRect(CGRect rect, CGFloat scale) {
+static Toastbox::Grid::Rect _GridRectFromCGRect(CGRect rect, CGFloat scale) {
     const CGRect irect = CGRectIntegral({
         rect.origin.x*scale,
         rect.origin.y*scale,
@@ -134,13 +134,13 @@ static Grid::Rect _GridRectFromCGRect(CGRect rect, CGFloat scale) {
         rect.size.height*scale,
     });
     
-    return Grid::Rect{
+    return Toastbox::Grid::Rect{
         .point = {(int32_t)irect.origin.x, (int32_t)irect.origin.y},
         .size = {(int32_t)irect.size.width, (int32_t)irect.size.height},
     };
 }
 
-static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat scale) {
+static Toastbox::Grid::IndexRange _VisibleIndexRange(Toastbox::Grid& grid, CGRect frame, CGFloat scale) {
     return grid.indexRangeForIndexRect(grid.indexRectForRect(_GridRectFromCGRect(frame, scale)));
 }
 
@@ -246,7 +246,7 @@ static MTLTextureDescriptor* _TextureDescriptor() {
         const CGFloat contentsScale = [self contentsScale];
         const CGSize superlayerSize = [[self superlayer] bounds].size;
         const CGSize viewSize = {superlayerSize.width*contentsScale, superlayerSize.height*contentsScale};
-        const Grid::IndexRange visibleIndexRange = _VisibleIndexRange(_grid, frame, contentsScale);
+        const Toastbox::Grid::IndexRange visibleIndexRange = _VisibleIndexRange(_grid, frame, contentsScale);
         if (!visibleIndexRange.count) return;
         
         uint32_t i = (visibleIndexRange.start / _TextureArray::Count) * _TextureArray::Count;
@@ -444,231 +444,6 @@ static constexpr at_block_format_t _ATBlockFormatForMTLPixelFormat() {
 #endif
 }
 
-//static size_t _SamplesPerPixel(MTLPixelFormat fmt) {
-//    switch (fmt) {
-//    case MTLPixelFormatR8Unorm:         return 1;
-//    case MTLPixelFormatR16Unorm:        return 1;
-//    case MTLPixelFormatR32Float:        return 1;
-//    case MTLPixelFormatRGBA8Unorm:      return 4;
-//    case MTLPixelFormatRGBA8Unorm_sRGB: return 4;
-//    case MTLPixelFormatBGRA8Unorm:      return 4;
-//    case MTLPixelFormatBGRA8Unorm_sRGB: return 4;
-//    case MTLPixelFormatRGBA16Unorm:     return 4;
-//    case MTLPixelFormatRGBA16Float:     return 4;
-//    case MTLPixelFormatRGBA32Float:     return 4;
-//    default:                            throw std::runtime_error("invalid pixel format");
-//    }
-//}
-//
-//static size_t _BytesPerSample(MTLPixelFormat fmt) {
-//    switch (fmt) {
-//    case MTLPixelFormatR8Unorm:         return 1;
-//    case MTLPixelFormatR16Unorm:        return 2;
-//    case MTLPixelFormatR32Float:        return 4;
-//    case MTLPixelFormatRGBA8Unorm:      return 1;
-//    case MTLPixelFormatRGBA8Unorm_sRGB: return 1;
-//    case MTLPixelFormatBGRA8Unorm:      return 1;
-//    case MTLPixelFormatBGRA8Unorm_sRGB: return 1;
-//    case MTLPixelFormatRGBA16Unorm:     return 2;
-//    case MTLPixelFormatRGBA16Float:     return 2;
-//    case MTLPixelFormatRGBA32Float:     return 4;
-//    default:                            throw std::runtime_error("invalid pixel format");
-//    }
-//}
-//
-//static size_t _BytesPerPixel(MTLPixelFormat fmt) {
-//    return _SamplesPerPixel(fmt)*_BytesPerSample(fmt);
-//}
-//
-//static id /* CGColorSpaceRef */ _LinearGrayColorSpace() {
-//    static id /* CGColorSpaceRef */ cs = CFBridgingRelease(CGColorSpaceCreateWithName(kCGColorSpaceLinearGray));
-//    return cs;
-//}
-//
-//static id /* CGColorSpaceRef */ _SRGBColorSpace() {
-//    static id /* CGColorSpaceRef */ cs = CFBridgingRelease(CGColorSpaceCreateWithName(kCGColorSpaceSRGB));
-//    return cs;
-//}
-//
-//static id /* CGColorSpaceRef */ _LinearSRGBColorSpace() {
-//    static id /* CGColorSpaceRef */ cs = CFBridgingRelease(CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB));
-//    return cs;
-//}
-//
-//id<MTLTexture> _TextureCreate(
-//    id<MTLDevice> dev,
-//    MTLPixelFormat fmt,
-//    size_t width, size_t height,
-//    MTLTextureUsage usage=(MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead)
-//) {
-//    // We don't have a cached texture matching the criteria, so create a new one
-//    MTLTextureDescriptor* desc = [MTLTextureDescriptor new];
-//    [desc setTextureType:MTLTextureType2D];
-//    [desc setWidth:width];
-//    [desc setHeight:height];
-//    [desc setPixelFormat:fmt];
-//    [desc setUsage:usage];
-//    return [dev newTextureWithDescriptor:desc];
-//}
-//
-//// Read samples from a texture
-//template <typename T>
-//std::vector<T> _TextureRead(id<MTLTexture> txt) {
-//    const size_t w = [txt width];
-//    const size_t h = [txt height];
-//    const MTLPixelFormat fmt = [txt pixelFormat];
-//    const size_t samplesPerPixel = _SamplesPerPixel(fmt);
-//    const size_t len = samplesPerPixel*w*h;
-//    std::vector<T> r;
-//    r.resize(len);
-//    textureRead(txt, r.data(), len, MTLRegionMake2D(0,0,w,h));
-//    return r;
-//}
-//
-//// Read samples from a texture
-//template <typename T>
-//void _TextureRead(id<MTLTexture> txt, T* samples, size_t cap) {
-//    const size_t w = [txt width];
-//    const size_t h = [txt height];
-//    _TextureRead(txt, samples, cap, MTLRegionMake2D(0,0,w,h));
-//}
-//
-//// Read samples from a texture
-//template <typename T>
-//void _TextureRead(id<MTLTexture> txt, T* samples, size_t cap, MTLRegion region) {
-//    const MTLPixelFormat fmt = [txt pixelFormat];
-//    const size_t samplesPerPixel = _SamplesPerPixel(fmt);
-//    assert(cap >= samplesPerPixel*region.size.width*region.size.height);
-//    const size_t bytesPerSample = _BytesPerSample(fmt);
-//    assert(bytesPerSample == sizeof(T));
-//    const size_t bytesPerRow = samplesPerPixel*bytesPerSample*region.size.width;
-//    [txt getBytes:samples bytesPerRow:bytesPerRow fromRegion:region mipmapLevel:0];
-//}
-//
-//// Create a CGImage from a texture
-//id /* CGImageRef */ _ImageCreate(id<MTLDevice> dev, id<MTLTexture> txt) {
-//    const size_t w = [txt width];
-//    const size_t h = [txt height];
-//    const MTLPixelFormat fmt = [txt pixelFormat];
-//    const size_t samplesPerPixel = _SamplesPerPixel(fmt);
-//    const size_t bytesPerSample = _BytesPerSample(fmt);
-//    const size_t sampleCount = samplesPerPixel*w*h;
-//    const size_t bytesPerRow = samplesPerPixel*bytesPerSample*w;
-//    uint32_t opts = 0;
-//    
-//    // Add support for more pixel formats as needed...
-//    bool premulAlpha = false;
-//    bool srgbGammaApplied = false;
-//    switch (fmt) {
-//    // Gray
-//    case MTLPixelFormatR8Unorm:
-//        opts = 0;
-//        break;
-//    case MTLPixelFormatR16Unorm:
-//        opts = kCGBitmapByteOrder16Host;
-//        break;
-//    case MTLPixelFormatR16Float:
-//        opts = kCGBitmapFloatComponents|kCGBitmapByteOrder16Host;
-//        break;
-//    case MTLPixelFormatR32Float:
-//        opts = kCGBitmapFloatComponents|kCGBitmapByteOrder32Host;
-//        break;
-//    
-//    // Color
-//    case MTLPixelFormatRGBA8Unorm:
-//        opts = kCGImageAlphaPremultipliedLast;
-//        premulAlpha = true;
-//        break;
-//    case MTLPixelFormatRGBA8Unorm_sRGB:
-//        opts = kCGImageAlphaPremultipliedLast;
-//        premulAlpha = true;
-//        srgbGammaApplied = true;
-//        break;
-//    case MTLPixelFormatRGBA16Unorm:
-//        opts = kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder16Host;
-//        premulAlpha = true;
-//        break;
-//    case MTLPixelFormatRGBA16Float:
-//        opts = kCGImageAlphaPremultipliedLast|kCGBitmapFloatComponents|kCGBitmapByteOrder16Host;
-//        premulAlpha = true;
-//        break;
-//    case MTLPixelFormatRGBA32Float:
-//        opts = kCGImageAlphaPremultipliedLast|kCGBitmapFloatComponents|kCGBitmapByteOrder32Host;
-//        premulAlpha = true;
-//        break;
-//    default:
-//        throw std::runtime_error("invalid texture format");
-//    }
-//    
-//    if (premulAlpha) {
-//        // Load pixel data into `txt`
-//        id<MTLTexture> tmp = _TextureCreate(dev, fmt, w, h);
-//        render(tmp, BlendType::None,
-//            FragmentShader(
-//                _ShaderNamespace "PremulAlpha",
-//                // Texture args
-//                txt
-//            )
-//        );
-//        _Sync(tmp);
-//        _CommitAndWait(cmdBuf);
-//        txt = tmp;
-//    }
-//    
-//    // Choose a colorspace if one wasn't supplied
-//    id /* CGColorSpaceRef */ colorSpace = nil;
-//    if (samplesPerPixel == 1) {
-//        colorSpace = _LinearGrayColorSpace();
-//    } else if (samplesPerPixel == 4) {
-//        if (srgbGammaApplied) {
-//            colorSpace = _SRGBColorSpace();
-//        } else {
-//            colorSpace = _LinearSRGBColorSpace();
-//        }
-//    } else {
-//        throw std::runtime_error("invalid texture format");
-//    }
-//    
-//    id ctx = CFBridgingRelease(CGBitmapContextCreate(nullptr, w, h, bytesPerSample*8,
-//        bytesPerRow, (CGColorSpaceRef)colorSpace, opts));
-//    
-//    if (!ctx) throw std::runtime_error("CGBitmapContextCreate returned nil");
-//    
-//    void* data = CGBitmapContextGetData((CGContextRef)ctx);
-//    if (bytesPerSample == 1)        _TextureRead(txt, (uint8_t*)data, sampleCount);
-//    else if (bytesPerSample == 2)   _TextureRead(txt, (uint16_t*)data, sampleCount);
-//    else if (bytesPerSample == 4)   _TextureRead(txt, (uint32_t*)data, sampleCount);
-//    else                            throw std::runtime_error("invalid bytesPerSample");
-//    return CFBridgingRelease(CGBitmapContextCreateImage((CGContextRef)ctx));
-//}
-//
-//static void _CommitAndWait(id<MTLCommandBuffer> cmdBuf) {
-//    if (!cmdBuf) return;
-//    [cmdBuf commit];
-//    [cmdBuf waitUntilCompleted];
-//}
-//
-//static void _Sync(id<MTLCommandBuffer> cmdBuf, id<MTLResource> rsrc) {
-//    id<MTLBlitCommandEncoder> blit = [cmdBuf blitCommandEncoder];
-//    [blit synchronizeResource:rsrc];
-//    [blit endEncoding];
-//}
-//
-//static void _DebugTextureShow(id<MTLCommandBuffer> cmdBuf, id<MTLTexture> txt) {
-//    const char* outputPath = "/tmp/tempimage.png";
-//    
-//    _Sync(cmdBuf, txt);
-//    _CommitAndWait(cmdBuf);
-//    
-//    id img = imageCreate(txt);
-//    assert(img);
-//    NSURL* outputURL = [NSURL fileURLWithPath:@(outputPath)];
-//    CGImageDestinationRef imageDest = CGImageDestinationCreateWithURL((CFURLRef)outputURL, kUTTypePNG, 1, nullptr);
-//    CGImageDestinationAddImage(imageDest, (__bridge CGImageRef)img, nullptr);
-//    CGImageDestinationFinalize(imageDest);
-//    system((std::string("open ") + outputPath).c_str());
-//}
-
 static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount) {
     const size_t MmapLen = sizeof(_ImageCompressedStorage) * (imageCount + 1);
     const size_t MmapCap = Toastbox::Mmap::PageCeil(MmapLen);
@@ -692,8 +467,8 @@ static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount)
         const uint32_t ThreadCount = std::max(1,(int)std::thread::hardware_concurrency());
         printf("Loading source images (on %ju threads)...\n", (uintmax_t)ThreadCount);
         {
-            const fs::path imagesDir = "/Users/dave/Desktop/TestImages-5k";
-    //        const fs::path imagesDir = "/Users/dave/repos/AnchoredScrollView/Examples/GridTest/images";
+            const fs::path resources = [[[NSBundle mainBundle] resourcePath] UTF8String];
+            const fs::path imagesDir = resources / "Test-Images";
             for (const fs::path& p : fs::recursive_directory_iterator(imagesDir)) @autoreleasepool {
                 if (!_IsImageFile(p)) continue;
                 imagePaths.push_back(p);
@@ -844,7 +619,8 @@ static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount)
 }
 
 int main(int argc, const char* argv[]) {
-    const fs::path MmapPath = "/Users/dave/Desktop/images.mmap";
-    _ImagesMmap = _ImagesCreate(MmapPath, _ImageCount);
+    const fs::path bundleDir = fs::path([[[NSBundle mainBundle] bundlePath] UTF8String]).parent_path();
+    const fs::path mmapPath = bundleDir / "images.mmap";
+    _ImagesMmap = _ImagesCreate(mmapPath, _ImageCount);
     return NSApplicationMain(argc, argv);
 }

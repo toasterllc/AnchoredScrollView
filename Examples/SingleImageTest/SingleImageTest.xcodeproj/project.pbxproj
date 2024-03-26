@@ -10,7 +10,7 @@
 		551FFA722BAFE3A60056263C /* SingleImageTest.mm in Sources */ = {isa = PBXBuildFile; fileRef = 551FFA702BAFE3A60056263C /* SingleImageTest.mm */; };
 		551FFA772BAFE3B20056263C /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 551FFA732BAFE3B20056263C /* Info.plist */; };
 		551FFA782BAFE3B20056263C /* MyDocumentLayer.metal in Sources */ = {isa = PBXBuildFile; fileRef = 551FFA742BAFE3B20056263C /* MyDocumentLayer.metal */; };
-		551FFA792BAFE3B20056263C /* TestImage.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 551FFA762BAFE3B20056263C /* TestImage.jpg */; };
+		551FFA792BAFE3B20056263C /* Test-Image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 551FFA762BAFE3B20056263C /* Test-Image.jpg */; };
 		551FFA7B2BAFE3C30056263C /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 551FFA7A2BAFE3C30056263C /* MainMenu.xib */; };
 		551FFA822BAFE4200056263C /* AnchoredScrollView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 551FFA7D2BAFE4200056263C /* AnchoredScrollView.mm */; };
 		551FFA832BAFE4200056263C /* AnchoredMetalDocumentLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 551FFA7F2BAFE4200056263C /* AnchoredMetalDocumentLayer.mm */; };
@@ -26,7 +26,7 @@
 		551FFA702BAFE3A60056263C /* SingleImageTest.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = SingleImageTest.mm; sourceTree = "<group>"; };
 		551FFA732BAFE3B20056263C /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		551FFA742BAFE3B20056263C /* MyDocumentLayer.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = MyDocumentLayer.metal; sourceTree = "<group>"; };
-		551FFA762BAFE3B20056263C /* TestImage.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = TestImage.jpg; sourceTree = "<group>"; };
+		551FFA762BAFE3B20056263C /* Test-Image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "Test-Image.jpg"; sourceTree = "<group>"; };
 		551FFA7A2BAFE3C30056263C /* MainMenu.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		551FFA7C2BAFE4200056263C /* AnchoredMetalDocumentLayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AnchoredMetalDocumentLayer.h; path = ../../AnchoredMetalDocumentLayer.h; sourceTree = "<group>"; };
 		551FFA7D2BAFE4200056263C /* AnchoredScrollView.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AnchoredScrollView.mm; path = ../../AnchoredScrollView.mm; sourceTree = "<group>"; };
@@ -70,7 +70,7 @@
 				551FFA7D2BAFE4200056263C /* AnchoredScrollView.mm */,
 				551FFA732BAFE3B20056263C /* Info.plist */,
 				551FFA742BAFE3B20056263C /* MyDocumentLayer.metal */,
-				551FFA762BAFE3B20056263C /* TestImage.jpg */,
+				551FFA762BAFE3B20056263C /* Test-Image.jpg */,
 				551FFA7A2BAFE3C30056263C /* MainMenu.xib */,
 				55F8D09F27C594F800757165 /* Products */,
 				55F8D0B427C5E55C00757165 /* Frameworks */,
@@ -155,7 +155,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				551FFA772BAFE3B20056263C /* Info.plist in Resources */,
-				551FFA792BAFE3B20056263C /* TestImage.jpg in Resources */,
+				551FFA792BAFE3B20056263C /* Test-Image.jpg in Resources */,
 				551FFA7B2BAFE3C30056263C /* MainMenu.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

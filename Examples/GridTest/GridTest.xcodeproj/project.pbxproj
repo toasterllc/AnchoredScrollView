@@ -21,6 +21,7 @@
 		556844972BB21AAA008F59AE /* LICENSE.md in Resources */ = {isa = PBXBuildFile; fileRef = 556844732BB21AAA008F59AE /* LICENSE.md */; };
 		556844982BB21AAA008F59AE /* Renderer.metal in Sources */ = {isa = PBXBuildFile; fileRef = 5568447F2BB21AAA008F59AE /* Renderer.metal */; };
 		556844992BB21AAA008F59AE /* ThreePartView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 556844822BB21AAA008F59AE /* ThreePartView.mm */; };
+		5568488A2BB3762C008F59AE /* Test-Images in Resources */ = {isa = PBXBuildFile; fileRef = 556848892BB3762C008F59AE /* Test-Images */; };
 		55F8D0B627C5E55C00757165 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55F8D0B527C5E55C00757165 /* MetalKit.framework */; };
 		55F8D0CF27C6DB5100757165 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55F8D0CE27C6DB5100757165 /* Accelerate.framework */; };
 /* End PBXBuildFile section */
@@ -39,7 +40,6 @@
 		551FFA852BAFE4CE0056263C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		551FFA872BAFE4DD0056263C /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		551FFA892BAFE4E90056263C /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
-		556844682BB1CBC9008F59AE /* Grid.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Grid.h; sourceTree = "<group>"; };
 		556844692BB1CFD9008F59AE /* GridLayerTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GridLayerTypes.h; sourceTree = "<group>"; };
 		5568446D2BB20B8C008F59AE /* MetalPerformanceShaders.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShaders.framework; path = System/Library/Frameworks/MetalPerformanceShaders.framework; sourceTree = SDKROOT; };
 		5568446F2BB21026008F59AE /* libate.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libate.tbd; path = usr/lib/libate.tbd; sourceTree = SDKROOT; };
@@ -78,6 +78,8 @@
 		556844942BB21AAA008F59AE /* String.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = String.h; sourceTree = "<group>"; };
 		556844952BB21AAA008F59AE /* NumForStr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NumForStr.h; sourceTree = "<group>"; };
 		556844962BB21AAA008F59AE /* Atomic.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Atomic.h; sourceTree = "<group>"; };
+		5568449F2BB37057008F59AE /* Grid.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Grid.h; sourceTree = "<group>"; };
+		556848892BB3762C008F59AE /* Test-Images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Test-Images"; path = "../../Test-Images"; sourceTree = "<group>"; };
 		55F8D09E27C594F800757165 /* GridTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GridTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		55F8D0B527C5E55C00757165 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		55F8D0CE27C6DB5100757165 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
@@ -150,6 +152,7 @@
 		5568447C2BB21AAA008F59AE /* Mac */ = {
 			isa = PBXGroup;
 			children = (
+				5568449F2BB37057008F59AE /* Grid.h */,
 				5568447D2BB21AAA008F59AE /* ThreePartView.h */,
 				5568447E2BB21AAA008F59AE /* Renderer.h */,
 				5568447F2BB21AAA008F59AE /* Renderer.metal */,
@@ -164,18 +167,18 @@
 			isa = PBXGroup;
 			children = (
 				556844712BB21AAA008F59AE /* Lib */,
-				556844682BB1CBC9008F59AE /* Grid.h */,
-				556844692BB1CFD9008F59AE /* GridLayerTypes.h */,
-				551FFA742BAFE3B20056263C /* GridLayer.metal */,
-				551FFA702BAFE3A60056263C /* GridTest.mm */,
 				551FFA812BAFE4200056263C /* AnchoredDocumentView.h */,
 				551FFA802BAFE4200056263C /* AnchoredDocumentView.mm */,
 				551FFA7C2BAFE4200056263C /* AnchoredMetalDocumentLayer.h */,
 				551FFA7F2BAFE4200056263C /* AnchoredMetalDocumentLayer.mm */,
 				551FFA7E2BAFE4200056263C /* AnchoredScrollView.h */,
 				551FFA7D2BAFE4200056263C /* AnchoredScrollView.mm */,
+				556844692BB1CFD9008F59AE /* GridLayerTypes.h */,
+				551FFA742BAFE3B20056263C /* GridLayer.metal */,
+				551FFA702BAFE3A60056263C /* GridTest.mm */,
 				551FFA732BAFE3B20056263C /* Info.plist */,
 				551FFA7A2BAFE3C30056263C /* MainMenu.xib */,
+				556848892BB3762C008F59AE /* Test-Images */,
 				55F8D09F27C594F800757165 /* Products */,
 				55F8D0B427C5E55C00757165 /* Frameworks */,
 			);
@@ -262,6 +265,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				556844972BB21AAA008F59AE /* LICENSE.md in Resources */,
+				5568488A2BB3762C008F59AE /* Test-Images in Resources */,
 				551FFA7B2BAFE3C30056263C /* MainMenu.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

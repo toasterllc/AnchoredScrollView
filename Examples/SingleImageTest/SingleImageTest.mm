@@ -44,7 +44,7 @@ static CGColorSpaceRef _LinearSRGBColorSpace() {
     _commandQueue = [_device newCommandQueue];
     
     MTKTextureLoader* loader = [[MTKTextureLoader alloc] initWithDevice:_device];
-    _imageTexture = [loader newTextureWithContentsOfURL:[[NSBundle mainBundle] URLForImageResource:@"TestImage"] options:nil error:nil];
+    _imageTexture = [loader newTextureWithContentsOfURL:[[NSBundle mainBundle] URLForImageResource:@"Test-Image"] options:nil error:nil];
     assert(_imageTexture);
     
     _vertexShader = [_library newFunctionWithName:@"VertexShader"];

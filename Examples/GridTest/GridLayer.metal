@@ -25,7 +25,7 @@ vertex VertexOutput VertexShader(
 ) {
     // idxGrid: absolute index in grid
     const uint idxGrid = ctx.idx + iidx;
-    const Grid::Rect rect = ctx.grid.rectForCellIndex(idxGrid);
+    const Toastbox::Grid::Rect rect = ctx.grid.rectForCellIndex(idxGrid);
     const int2 voff = int2(rect.size.x, rect.size.y) * int2(_Verts[vidx]);
     const int2 vabs = int2(rect.point.x, rect.point.y) + voff;
     const float2 vnorm = float2(vabs) / ctx.viewSize;
