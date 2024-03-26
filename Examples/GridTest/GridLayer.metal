@@ -31,6 +31,7 @@ vertex VertexOutput VertexShader(
     const float2 vnorm = float2(vabs) / ctx.viewSize;
     
     return VertexOutput{
+        .idx = idxGrid,
         .posView = ctx.transform * float4(vnorm, 0, 1),
         .posNorm = _Verts[vidx],
         .posPx = float2(voff),
@@ -39,9 +40,13 @@ vertex VertexOutput VertexShader(
 
 fragment float4 FragmentShader(
     constant RenderContext& ctx [[buffer(0)]],
+    texture2d_array<float> txt [[texture(1)]],
     VertexOutput in [[stage_in]]
 ) {
-    return float4(1,1,1,1);
+    return txt.sample({}, in.posNorm, in.idx);
+//    const uint2 pos = uint2(in.posPx);
+//    return txt.read(pos, in.idx);
+//    return float4(1,1,1,1);
 //    const uint2 pos = uint2(in.posPx);
 //    float3 c = txt.read(pos, in.idx).rgb;
 //    return float4(c, 1);

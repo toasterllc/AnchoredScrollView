@@ -15,11 +15,17 @@
 #import "Lib/Toastbox/Util.h"
 #import "Lib/Toastbox/Mac/Renderer.h"
 #import "Lib/Toastbox/Mmap.h"
+#import "Lib/Toastbox/LRU.h"
 namespace fs = std::filesystem;
 
 static constexpr size_t _ImageWidth = 160;
 static constexpr size_t _ImageHeight = 90;
 static constexpr size_t _ImageCount = 1000;
+
+using _ImageStorage = std::array<uint8_t, _ImageWidth*_ImageHeight*4>;
+using _ImageStoragePtr = std::unique_ptr<_ImageStorage>;
+using _ImageCompressedStorage = std::array<uint8_t, _ImageWidth*_ImageHeight>;
+using _ImageCompressedStoragePtr = std::unique_ptr<_ImageCompressedStorage>;
 
 static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
 
@@ -35,6 +41,11 @@ static constexpr CGSize _CellSizeDefault = { _ImageWidth, _ImageHeight };
 static constexpr CGSize _CellSpacingDefault = { 10, 10 };
 
 static Toastbox::Mmap _ImagesMmap;
+
+struct _TextureArray {
+    static constexpr size_t Count = 128;
+    id<MTLTexture> txt = nil;
+};
 
 @interface GridLayer : AnchoredMetalDocumentLayer
 @end
@@ -53,6 +64,8 @@ static Toastbox::Mmap _ImagesMmap;
     CGFloat _containerWidth;
     Grid _grid;
     float _cellScale;
+    
+    Toastbox::LRU<uint32_t,_TextureArray,8> _txts;
 }
 
 - (instancetype)init {
@@ -147,6 +160,47 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
     [self setNeedsDisplay];
 }
 
+static MTLTextureDescriptor* _TextureDescriptor() {
+    MTLTextureDescriptor* desc = [MTLTextureDescriptor new];
+    [desc setTextureType:MTLTextureType2DArray];
+    [desc setPixelFormat:_PixelFormatCompressed];
+    [desc setWidth:_ImageWidth];
+    [desc setHeight:_ImageHeight];
+    [desc setArrayLength:_TextureArray::Count];
+    return desc;
+}
+
+- (_TextureArray&)_getTextureArray:(uint32_t)idx {
+    assert(!(idx % _TextureArray::Count));
+    
+    // If we already have a _TextureArray for `idx`, return it.
+    // Otherwise we need to create it.
+    const auto it = _txts.find(idx);
+    if (it != _txts.end()) {
+        return it->val;
+    }
+    
+    auto startTime = std::chrono::steady_clock::now();
+    
+    static MTLTextureDescriptor* txtDesc = _TextureDescriptor();
+    id<MTLTexture> txt = [_device newTextureWithDescriptor:txtDesc];
+    assert(txt);
+    
+    _TextureArray& ta = _txts[idx];
+    ta.txt = txt;
+    
+    for (size_t i=0; i<_TextureArray::Count; i++) {
+        const uint8_t* b = _ImagesMmap.data() + i*sizeof(_ImageCompressedStorage);
+        [txt replaceRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0
+            slice:i withBytes:b bytesPerRow:_ImageWidth*4 bytesPerImage:0];
+    }
+    
+    auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-startTime).count();
+    printf("Texture creation took %ju ms\n", (uintmax_t)durationMs);
+    
+    return ta;
+}
+
 - (void)display {
     [super display];
     
@@ -172,6 +226,18 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
     }
     
     {
+//        id<MTLBuffer> imagesBuf = [_device newBufferWithBytes:(void*)_ImagesMmap.data()
+//            length:_ImagesMmap.len() options:MTLResourceCPUCacheModeDefaultCache|MTLResourceStorageModeShared];
+//        
+//        MTLTextureDescriptor* desc = [MTLTextureDescriptor new];
+//        [desc setTextureType:MTLTextureType2DArray];
+//        [desc setPixelFormat:_PixelFormat];
+//        [desc setWidth:_ImageWidth];
+//        [desc setHeight:_ImageHeight];
+//        [desc setArrayLength:10];
+//        
+//        id<MTLTexture> imagesTxt = [imagesBuf newTextureWithDescriptor:desc offset:0 bytesPerRow:_ImageWidth*4];
+        
         const CGRect frame = [self frame];
         const CGFloat contentsScale = [self contentsScale];
         const CGSize superlayerSize = [[self superlayer] bounds].size;
@@ -179,34 +245,57 @@ static Grid::IndexRange _VisibleIndexRange(Grid& grid, CGRect frame, CGFloat sca
         const Grid::IndexRange visibleIndexRange = _VisibleIndexRange(_grid, frame, contentsScale);
         if (!visibleIndexRange.count) return;
         
-        MTLRenderPassDescriptor* renderPassDescriptor = [MTLRenderPassDescriptor new];
-        [[renderPassDescriptor colorAttachments][0] setTexture:drawableTxt];
-        [[renderPassDescriptor colorAttachments][0] setLoadAction:MTLLoadActionLoad];
-        [[renderPassDescriptor colorAttachments][0] setStoreAction:MTLStoreActionStore];
-        
-        id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        [renderEncoder setRenderPipelineState:_pipelineState];
-        [renderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-        [renderEncoder setCullMode:MTLCullModeNone];
-        
-        const RenderContext ctx = {
-            .grid = _grid,
-            .idx = (uint32_t)visibleIndexRange.start,
-            .viewSize = {(float)viewSize.width, (float)viewSize.height},
-            .transform = [self anchoredTransform],
-        };
-        
-        [renderEncoder setVertexBytes:&ctx length:sizeof(ctx) atIndex:0];
-//        [renderEncoder setVertexBuffer:imageRefs offset:0 atIndex:1];
-        
-        [renderEncoder setFragmentBytes:&ctx length:sizeof(ctx) atIndex:0];
-//        [renderEncoder setFragmentBytes:&ct.loadCounts length:sizeof(ct.loadCounts) atIndex:1];
-//        [renderEncoder setFragmentTexture:ct.txt atIndex:0];
-        
-        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0
-            vertexCount:6 instanceCount:visibleIndexRange.count];
-        
-        [renderEncoder endEncoding];
+        uint32_t i = (visibleIndexRange.start / _TextureArray::Count) * _TextureArray::Count;
+        for (; i<visibleIndexRange.start+visibleIndexRange.count; i+=_TextureArray::Count) {
+            MTLRenderPassDescriptor* renderPassDescriptor = [MTLRenderPassDescriptor new];
+            [[renderPassDescriptor colorAttachments][0] setTexture:drawableTxt];
+            [[renderPassDescriptor colorAttachments][0] setLoadAction:MTLLoadActionLoad];
+            [[renderPassDescriptor colorAttachments][0] setStoreAction:MTLStoreActionStore];
+            
+    //        id<MTLTexture>* textures = nil;
+            
+            id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+            [renderEncoder setRenderPipelineState:_pipelineState];
+            [renderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+            [renderEncoder setCullMode:MTLCullModeNone];
+            
+            const RenderContext ctx = {
+                .grid = _grid,
+                .idx = (uint32_t)i,
+                .viewSize = {(float)viewSize.width, (float)viewSize.height},
+                .transform = [self anchoredTransform],
+            };
+            
+            [renderEncoder setVertexBytes:&ctx length:sizeof(ctx) atIndex:0];
+    //        [renderEncoder setVertexBuffer:imageRefs offset:0 atIndex:1];
+            
+    //        [ct.txt replaceRegion:MTLRegionMake2D(0,0,ImageThumb::ThumbWidth,ImageThumb::ThumbHeight) mipmapLevel:0
+    //            slice:ref.idx withBytes:b bytesPerRow:ImageThumb::ThumbWidth*4 bytesPerImage:0];
+            
+//            id<MTLTexture> txt = [_device newTextureWithDescriptor:_TextureDescriptor()];
+//            for (auto i=visibleIndexRange.start; i<visibleIndexRange.start+visibleIndexRange.count; i++) {
+//                const uint8_t* b = _ImagesMmap.data() + i*sizeof(_ImageCompressedStorage);
+//    //            const uint8_t* b = _ImagesMmap.data();
+//                [txt replaceRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0
+//                    slice:i withBytes:b bytesPerRow:_ImageWidth*4 bytesPerImage:0];
+//            }
+            
+    //        [ct.txt replaceRegion:MTLRegionMake2D(0,0,ImageThumb::ThumbWidth,ImageThumb::ThumbHeight) mipmapLevel:0
+    //            slice:ref.idx withBytes:b bytesPerRow:ImageThumb::ThumbWidth*4 bytesPerImage:0];
+            
+            _TextureArray& ta = [self _getTextureArray:i];
+            
+            [renderEncoder setFragmentBytes:&ctx length:sizeof(ctx) atIndex:0];
+    //        [renderEncoder setFragmentBytes:&ct.loadCounts length:sizeof(ct.loadCounts) atIndex:1];
+            [renderEncoder setFragmentTexture:ta.txt atIndex:1];
+    //        [renderEncoder setFragmentBuffer:imagesBuf offset:0 atIndex:1];
+            
+            [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0
+                vertexCount:6 instanceCount:_TextureArray::Count];
+            
+            [renderEncoder endEncoding];
+
+        }
     }
     
     [commandBuffer commit];
@@ -577,12 +666,6 @@ static constexpr at_block_format_t _ATBlockFormatForMTLPixelFormat() {
 //}
 
 int main(int argc, const char* argv[]) {
-    using _ImageStorage = std::array<uint8_t, _ImageWidth*_ImageHeight*4>;
-    using _ImageCompressedStorage = std::array<uint8_t, _ImageWidth*_ImageHeight>;
-    
-    using _ImageStoragePtr = std::unique_ptr<_ImageStorage>;
-    using _ImageCompressedStoragePtr = std::unique_ptr<_ImageCompressedStorage>;
-    
     std::vector<_ImageCompressedStoragePtr> images;
     
     id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
