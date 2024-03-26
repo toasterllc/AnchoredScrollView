@@ -19,14 +19,14 @@
 namespace fs = std::filesystem;
 
 struct _TextureArray {
-    static constexpr size_t Count = 128;
+    static constexpr size_t Count = 512;
     id<MTLTexture> txt = nil;
 };
 
 static constexpr size_t _ImageWidth = 160;
 static constexpr size_t _ImageHeight = 90;
-static constexpr size_t _ImageCount = 1<<18; // 262,144
-//static constexpr size_t _ImageCount = 1<<20; // 1,048,576
+//static constexpr size_t _ImageCount = 1<<18; // 262,144
+static constexpr size_t _ImageCount = 1<<20; // 1,048,576
 // _ImageCount must be an even multiple of _TextureArray::Count
 static_assert(!(_ImageCount % _TextureArray::Count));
 
