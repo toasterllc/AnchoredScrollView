@@ -45,12 +45,8 @@ using _ImageCompressedStorage = std::array<uint8_t,
 using _ImageCompressedStoragePtr = std::unique_ptr<_ImageCompressedStorage>;
 
 #if defined(__aarch64__)
-    // _PixelFormat: on ARM, for some reason RGBA results in smoother scrolling perf than BGRA.
-    // RGBA isn't available on Intel though (or maybe just not available on macOS 10.15?)
-    static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
     static constexpr MTLPixelFormat _PixelFormatCompressed = MTLPixelFormatASTC_4x4_LDR;
 #elif defined(__x86_64__)
-    static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatBGRA8Unorm;
     static constexpr MTLPixelFormat _PixelFormatCompressed = MTLPixelFormatBC7_RGBAUnorm;
 #else
     #error Unknown platform
@@ -91,11 +87,6 @@ static Toastbox::Mmap _ImagesMmap;
     assert(_device);
     
     [self setDevice:[self preferredDevice]];
-//    [self setPixelFormat:_PixelFormat];
-//    [self setPixelFormat:MTLPixelFormatRGBA8Unorm]; // √
-//    [self setPixelFormat:MTLPixelFormatBGRA8Unorm]; // X
-//    [self setPixelFormat:MTLPixelFormatRGBA8Unorm_sRGB]; // √
-//    [self setPixelFormat:MTLPixelFormatBGRA8Unorm_sRGB]; // X
     [self setColorspace:(__bridge CGColorSpaceRef)CFBridgingRelease(CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB))];
     [self setOpaque:false];
     
@@ -113,15 +104,6 @@ static Toastbox::Mmap _ImagesMmap;
     [pipelineDescriptor setFragmentFunction:_fragmentShader];
     
     [[pipelineDescriptor colorAttachments][0] setPixelFormat:[self pixelFormat]];
-    [[pipelineDescriptor colorAttachments][0] setBlendingEnabled:true];
-    
-    [[pipelineDescriptor colorAttachments][0] setAlphaBlendOperation:MTLBlendOperationAdd];
-    [[pipelineDescriptor colorAttachments][0] setSourceAlphaBlendFactor:MTLBlendFactorSourceAlpha];
-    [[pipelineDescriptor colorAttachments][0] setDestinationAlphaBlendFactor:MTLBlendFactorOneMinusSourceAlpha];
-
-    [[pipelineDescriptor colorAttachments][0] setRgbBlendOperation:MTLBlendOperationAdd];
-    [[pipelineDescriptor colorAttachments][0] setSourceRGBBlendFactor:MTLBlendFactorSourceAlpha];
-    [[pipelineDescriptor colorAttachments][0] setDestinationRGBBlendFactor:MTLBlendFactorOneMinusSourceAlpha];
     
     _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:nil];
     assert(_pipelineState);
@@ -235,7 +217,7 @@ static MTLTextureDescriptor* _TextureDescriptor() {
         MTLRenderPassDescriptor* renderPassDescriptor = [MTLRenderPassDescriptor new];
         [[renderPassDescriptor colorAttachments][0] setTexture:drawableTxt];
         [[renderPassDescriptor colorAttachments][0] setLoadAction:MTLLoadActionClear];
-        [[renderPassDescriptor colorAttachments][0] setClearColor:{0,0,0,1}];
+        [[renderPassDescriptor colorAttachments][0] setClearColor:{}];
         [[renderPassDescriptor colorAttachments][0] setStoreAction:MTLStoreActionStore];
         
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
@@ -246,18 +228,6 @@ static MTLTextureDescriptor* _TextureDescriptor() {
     }
     
     {
-//        id<MTLBuffer> imagesBuf = [_device newBufferWithBytes:(void*)_ImagesMmap.data()
-//            length:_ImagesMmap.len() options:MTLResourceCPUCacheModeDefaultCache|MTLResourceStorageModeShared];
-//        
-//        MTLTextureDescriptor* desc = [MTLTextureDescriptor new];
-//        [desc setTextureType:MTLTextureType2DArray];
-//        [desc setPixelFormat:_PixelFormat];
-//        [desc setWidth:_ImageWidth];
-//        [desc setHeight:_ImageHeight];
-//        [desc setArrayLength:10];
-//        
-//        id<MTLTexture> imagesTxt = [imagesBuf newTextureWithDescriptor:desc offset:0 bytesPerRow:_ImageWidth*4];
-        
         const CGRect frame = [self frame];
         const CGFloat contentsScale = [self contentsScale];
         const CGSize superlayerSize = [[self superlayer] bounds].size;
@@ -272,8 +242,6 @@ static MTLTextureDescriptor* _TextureDescriptor() {
             [[renderPassDescriptor colorAttachments][0] setLoadAction:MTLLoadActionLoad];
             [[renderPassDescriptor colorAttachments][0] setStoreAction:MTLStoreActionStore];
             
-    //        id<MTLTexture>* textures = nil;
-            
             id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
             [renderEncoder setRenderPipelineState:_pipelineState];
             [renderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
@@ -287,28 +255,11 @@ static MTLTextureDescriptor* _TextureDescriptor() {
             };
             
             [renderEncoder setVertexBytes:&ctx length:sizeof(ctx) atIndex:0];
-    //        [renderEncoder setVertexBuffer:imageRefs offset:0 atIndex:1];
-            
-    //        [ct.txt replaceRegion:MTLRegionMake2D(0,0,ImageThumb::ThumbWidth,ImageThumb::ThumbHeight) mipmapLevel:0
-    //            slice:ref.idx withBytes:b bytesPerRow:ImageThumb::ThumbWidth*4 bytesPerImage:0];
-            
-//            id<MTLTexture> txt = [_device newTextureWithDescriptor:_TextureDescriptor()];
-//            for (auto i=visibleIndexRange.start; i<visibleIndexRange.start+visibleIndexRange.count; i++) {
-//                const uint8_t* b = _ImagesMmap.data() + i*sizeof(_ImageCompressedStorage);
-//    //            const uint8_t* b = _ImagesMmap.data();
-//                [txt replaceRegion:MTLRegionMake2D(0,0,_ImageWidth,_ImageHeight) mipmapLevel:0
-//                    slice:i withBytes:b bytesPerRow:_ImageWidth*4 bytesPerImage:0];
-//            }
-            
-    //        [ct.txt replaceRegion:MTLRegionMake2D(0,0,ImageThumb::ThumbWidth,ImageThumb::ThumbHeight) mipmapLevel:0
-    //            slice:ref.idx withBytes:b bytesPerRow:ImageThumb::ThumbWidth*4 bytesPerImage:0];
             
             _TextureArray& ta = [self _getTextureArray:i];
             
             [renderEncoder setFragmentBytes:&ctx length:sizeof(ctx) atIndex:0];
-    //        [renderEncoder setFragmentBytes:&ct.loadCounts length:sizeof(ct.loadCounts) atIndex:1];
             [renderEncoder setFragmentTexture:ta.txt atIndex:1];
-    //        [renderEncoder setFragmentBuffer:imagesBuf offset:0 atIndex:1];
             
             [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0
                 vertexCount:6 instanceCount:_TextureArray::Count];
@@ -577,16 +528,6 @@ static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount)
                         //        at_flags_default
                                 at_flags_print_debug_info
                             );
-                            
-//                            at_size_t meow = at_encoder_get_block_counts(compressor, { _ImageWidth, _ImageHeight, 1 });
-                            
-//                            at_block_buffer_t buf;
-//                            at_block_features_t at_block_get_features( _ATBlockFormatForMTLPixelFormat<_PixelFormatCompressed>(),
-//                                               &buf,
-//                                               at_size_t validSize,
-//                                               size_t size,
-//                                               size_t * __nullable outSize,
-//                                               at_flags_t flags ) /* AT_AVAILABILITY_v3 */;
                             
                             if (cr < 0) abort();
                         }
