@@ -5,6 +5,7 @@
 #import <algorithm>
 #import <thread>
 #import <filesystem>
+#import <array>
 #import <MetalPerformanceShaders/MetalPerformanceShaders.h>
 #import <AppleTextureEncoder.h>
 #import "AnchoredScrollView.h"
@@ -481,6 +482,8 @@ static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount)
                                 [filter setScaleTransform:&transform];
                                 [filter encodeToCommandBuffer:renderer.cmdBuf() sourceTexture:src destinationTexture:txt];
                             }
+                            
+                            renderer.sync(txt);
                             renderer.commitAndWait();
                         }
                         
