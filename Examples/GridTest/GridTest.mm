@@ -413,7 +413,7 @@ static constexpr at_block_format_t _ATBlockFormatForMTLPixelFormat() {
 }
 
 static Toastbox::Mmap _ImagesCreate(const fs::path& mmapPath, size_t imageCount) {
-    const size_t MmapLen = sizeof(_ImageCompressedStorage) * (imageCount + 1);
+    const size_t MmapLen = sizeof(_ImageCompressedStorage) * imageCount;
     const size_t MmapCap = Toastbox::Mmap::PageCeil(MmapLen);
     Toastbox::Mmap mmap = Toastbox::Mmap(mmapPath, MmapCap, O_CREAT|O_RDWR, 0644);
     
