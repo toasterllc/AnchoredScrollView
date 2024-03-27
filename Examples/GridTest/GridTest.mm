@@ -44,11 +44,13 @@ using _ImageCompressedStorage = std::array<uint8_t,
 
 using _ImageCompressedStoragePtr = std::unique_ptr<_ImageCompressedStorage>;
 
-static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
-
 #if defined(__aarch64__)
+    // _PixelFormat: on ARM, for some reason RGBA results in smoother scrolling perf than BGRA.
+    // RGBA isn't available on Intel though (or maybe just not available on macOS 10.15?)
+    static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatRGBA8Unorm;
     static constexpr MTLPixelFormat _PixelFormatCompressed = MTLPixelFormatASTC_4x4_LDR;
 #elif defined(__x86_64__)
+    static constexpr MTLPixelFormat _PixelFormat = MTLPixelFormatBGRA8Unorm;
     static constexpr MTLPixelFormat _PixelFormatCompressed = MTLPixelFormatBC7_RGBAUnorm;
 #else
     #error Unknown platform
@@ -89,8 +91,13 @@ static Toastbox::Mmap _ImagesMmap;
     assert(_device);
     
     [self setDevice:[self preferredDevice]];
-    [self setPixelFormat:_PixelFormat];
+//    [self setPixelFormat:_PixelFormat];
+//    [self setPixelFormat:MTLPixelFormatRGBA8Unorm]; // √
+//    [self setPixelFormat:MTLPixelFormatBGRA8Unorm]; // X
+//    [self setPixelFormat:MTLPixelFormatRGBA8Unorm_sRGB]; // √
+//    [self setPixelFormat:MTLPixelFormatBGRA8Unorm_sRGB]; // X
     [self setColorspace:(__bridge CGColorSpaceRef)CFBridgingRelease(CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB))];
+    [self setOpaque:false];
     
     _library = [_device newDefaultLibrary];
     _commandQueue = [_device newCommandQueue];
@@ -105,7 +112,7 @@ static Toastbox::Mmap _ImagesMmap;
     [pipelineDescriptor setVertexFunction:_vertexShader];
     [pipelineDescriptor setFragmentFunction:_fragmentShader];
     
-    [[pipelineDescriptor colorAttachments][0] setPixelFormat:_PixelFormat];
+    [[pipelineDescriptor colorAttachments][0] setPixelFormat:[self pixelFormat]];
     [[pipelineDescriptor colorAttachments][0] setBlendingEnabled:true];
     
     [[pipelineDescriptor colorAttachments][0] setAlphaBlendOperation:MTLBlendOperationAdd];
