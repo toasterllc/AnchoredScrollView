@@ -2,6 +2,7 @@
 #import <algorithm>
 #import <cmath>
 #import <optional>
+#import <functional>
 
 struct AssertionCounter {
     using Fn = std::function<void(bool)>;
