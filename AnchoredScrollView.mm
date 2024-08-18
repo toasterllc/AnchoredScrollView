@@ -483,23 +483,6 @@ static bool _EventPhaseChanged(NSEventPhase x) {
     }
 }
 
-//- (void)setContentInsets:(NSEdgeInsets)x {
-//    NSLog(@"MEOWMIX -setContentInsets");
-//    [super setContentInsets:x];
-//}
-
-//static CGRect _CGRectInset(CGRect rect, NSEdgeInsets inset) {
-//    // Left/right
-//    rect.origin.x += inset.left;
-//    rect.size.width -= inset.left + inset.right;
-//    
-//    // Top/bottom
-//    rect.origin.y += inset.top;
-//    rect.size.height -= inset.top + inset.bottom;
-//    
-//    return rect;
-//}
-
 - (void)reflectScrolledClipView:(NSClipView*)clipView {
     [super reflectScrolledClipView:clipView];
     
