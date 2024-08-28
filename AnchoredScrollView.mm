@@ -47,6 +47,9 @@ struct AssertionCounter {
 }
 @end
 
+@interface AnchoredScrollView_FloatingSubviewContainer : NSView
+@end
+
 @implementation AnchoredScrollView {
 @public
     NSView<AnchoredScrollViewDocument>* _doc;
@@ -70,7 +73,7 @@ struct AssertionCounter {
         AssertionCounter::Assertion magnifyUnderway;
     } _interactionUnderway;
     
-    NSView* _floatingSubviewContainer;
+    AnchoredScrollView_FloatingSubviewContainer* _floatingSubviewContainer;
     
     struct {
         NSTimer* magnifyToFitTimer = nil;
@@ -139,7 +142,7 @@ static NSScroller* _FirstScroller(NSView* view) {
     [self setMaxMagnification:1<<16];
     [self setUsesPredominantAxisScrolling:false];
     
-    _floatingSubviewContainer = [[NSView alloc] initWithFrame:{}];
+    _floatingSubviewContainer = [[AnchoredScrollView_FloatingSubviewContainer alloc] initWithFrame:{}];
     [self addSubview:_floatingSubviewContainer positioned:NSWindowBelow relativeTo:_FirstScroller(self)];
     
     return self;
@@ -587,6 +590,18 @@ static bool _EventPhaseChanged(NSEventPhase x) {
     assert(sv);
     assert(sv->_doc);
     return [sv->_doc anchoredFlipped];
+}
+
+@end
+
+
+@implementation AnchoredScrollView_FloatingSubviewContainer
+
+- (NSView*)hitTest:(NSPoint)point {
+    // Don't participate in event handling
+    NSView* v = [super hitTest:point];
+    if (v == self) return nil;
+    return v;
 }
 
 @end
