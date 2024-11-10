@@ -133,7 +133,7 @@ static NSScroller* _FirstScroller(NSView* view) {
         [selfWeak _docViewFrameChanged];
     }];
     
-    [self setScrollerStyle:NSScrollerStyleOverlay];
+    [super setScrollerStyle:NSScrollerStyleOverlay]; // Call super to bypass our override
     [self setBorderType:NSNoBorder];
     [self setHasHorizontalScroller:true];
     [self setHasVerticalScroller:true];
@@ -523,6 +523,14 @@ static bool _EventPhaseChanged(NSEventPhase x) {
 // We don't like the feel of it so we disable this resistance here.
 - (NSArray*)_magnificationInflectionPoints {
     return @[];
+}
+
+- (NSScrollerStyle)scrollerStyle {
+    return NSScrollerStyleOverlay;
+}
+
+- (void)setScrollerStyle:(NSScrollerStyle)scrollerStyle {
+    // Don't allow changing our scroll style
 }
 
 // MARK: - Floating Subviews
