@@ -418,8 +418,10 @@ static bool _EventPhaseChanged(NSEventPhase x) {
 // scrolling quickly, especially when scrolling near the margin
 - (void)scrollWheel:(NSEvent*)event {
     const NSEventPhase phase = [event phase];
-//    printf("AnchoredScrollView scrollWheel:\n");
-    if (phase & NSEventPhaseBegan) {
+    const NSEventPhase momentumPhase = [event momentumPhase];
+    // Reset if this is the beginning of trackpad scroll,
+    // or if this was a old-fashioned-scroll-wheel scroll
+    if ((phase & NSEventPhaseBegan) || (phase==NSEventPhaseNone && momentumPhase==NSEventPhaseNone)) {
         [self _scrollWheelReset];
         
         if (([event modifierFlags]&NSEventModifierFlagCommand) && ([self allowsMagnification])) {
