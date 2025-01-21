@@ -11,9 +11,9 @@
     [self setTranslatesAutoresizingMaskIntoConstraints:false];
     
     _layer = layer;
-    [_layer setContentsScale:std::max(1., [[self window] backingScaleFactor])];
     [self setLayer:_layer];
     [self setWantsLayer:true];
+    [self viewDidChangeBackingProperties];
     return self;
 }
 
